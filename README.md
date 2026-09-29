@@ -23,7 +23,7 @@ Status: **M0, M1, M3, M4, M5**. Engine adapters:
 Every file is read with the stdlib, and no engine needs to be installed. mddbmeta never executes an OpenMM script.
 
 - Python ≥ 3.10, no required dependencies (extras: `yaml`, `netcdf`, the latter for AMBER NetCDF only)
-- License: Apache-2.0 (see `NOTICE` for the clean-room statement)
+- License: Apache-2.0 (see `LICENSE`)
 
 ## Install
 
@@ -290,7 +290,7 @@ Fixture inputs under `tests/data/` are excluded from ruff so they stay byte-iden
 
 The NAMD tests use `tests/data/namd_real/` (NAMD 2.14b1, CHARMM36, built with VMD psfgen) and `tests/data/namd_amber/` (an `amber on` run). Their READMEs describe how each was made. They also read MDDB-workflow's own `test/data/input` files when present.
 
-After changing finding codes, run `python scripts/gen_findings_doc.py`. `tests/test_clean_room.py` fails if the package ever imports `ambermeta`.
+After changing finding codes, run `python scripts/gen_findings_doc.py`.
 
 ## Known limitations (M1)
 
