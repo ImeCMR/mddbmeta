@@ -1,0 +1,30 @@
+# Continue prod from its restart files; first step read from the xsc with a Tcl proc
+source ../common.inc
+proc get_first_ts { xscfile } {
+  set fd [open $xscfile r]
+  gets $fd; gets $fd; gets $fd line
+  set ts [lindex $line 0]
+  close $fd
+  return $ts
+}
+set inputname      prod.restart
+bincoordinates     $inputname.coor
+binvelocities      $inputname.vel
+extendedSystem     $inputname.xsc
+firsttimestep      [get_first_ts $inputname.xsc]
+rigidBonds         all
+timestep           2.0
+langevin           on
+langevinDamping    1.0
+langevinTemp       300
+useGroupPressure   yes
+langevinPiston        on
+langevinPistonTarget  1.01325
+langevinPistonPeriod  100.0
+langevinPistonDecay   50.0
+langevinPistonTemp    300
+outputName         prod_2
+restartfreq        250
+dcdfreq            250
+outputEnergies     250
+run                1500

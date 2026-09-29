@@ -1,0 +1,36 @@
+{
+  "boxtype": "Cubic",
+  "ensemble": "NPT",
+  "ff": [
+    "Amber ff14SB"
+  ],
+  "framestep": 0.001,
+  "input_topology_filepath": "system.prmtop",
+  "mdref": 0,
+  "mds": [
+    {
+      "input_trajectory_filepaths": [
+        "rep1/prod_0001.nc",
+        "rep1/prod_0002.nc",
+        "rep1/prod_0003.nc"
+      ],
+      "mdir": "rep1",
+      "name": "rep1"
+    },
+    {
+      "input_trajectory_filepaths": [
+        "rep2/prod_0001.nc",
+        "rep2/prod_0002.nc",
+        "rep2/prod_0003.nc"
+      ],
+      "mdir": "rep2",
+      "name": "rep2"
+    }
+  ],
+  "program": "AMBER",
+  "temp": 300.0,
+  "timestep": 2.0,
+  "type": "trajectory",
+  "version": "22",
+  "wat": "TIP3P"
+}

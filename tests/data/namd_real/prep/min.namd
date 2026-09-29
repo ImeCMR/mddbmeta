@@ -1,0 +1,10 @@
+# Minimization
+source ../common.inc
+temperature        0
+timestep           1.0
+cellBasisVector1   26.956 0 0
+cellBasisVector2   0 24.158 0
+cellBasisVector3   0 0 21.134
+cellOrigin         7.2235708236694336 4.5903854370117188 0.037263564765453339
+outputName         min
+minimize           200

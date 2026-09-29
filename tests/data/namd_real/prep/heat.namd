@@ -1,0 +1,21 @@
+# Heating 0 -> 300 K in 50 K steps (Tcl loop)
+source ../common.inc
+set temp           300
+bincoordinates     min.coor
+extendedSystem     min.xsc
+temperature        0
+rigidBonds         all
+timestep           2.0
+langevin           on
+langevinDamping    1.0
+langevinTemp       50
+langevinHydrogen   off
+outputName         heat
+dcdfreq            100
+restartfreq        100
+outputEnergies     100
+run 100
+for {set t 100} {$t <= $temp} {incr t 50} {
+    langevinTemp $t
+    run 100
+}

@@ -1,0 +1,439 @@
+{
+  "accept_heuristic": false,
+  "engine": "amber",
+  "fields": {
+    "boxtype": {
+      "confidence": "derived",
+      "method": "derived: box angles/lengths",
+      "sources": [
+        {
+          "locator": "box flag and dimensions",
+          "path": "system.prmtop"
+        },
+        {
+          "locator": "box line",
+          "path": "system.inpcrd"
+        }
+      ],
+      "unit": null,
+      "value": "Cubic"
+    },
+    "ensemble": {
+      "confidence": "derived",
+      "method": "ensemble from ntt/ntb/ntp",
+      "note": "12 sources agree; first 6 listed",
+      "sources": [
+        {
+          "locator": "&cntrl:ntt",
+          "path": "rep1/prod_0001.mdin"
+        },
+        {
+          "locator": "&cntrl:ntb",
+          "path": "rep1/prod_0001.mdin"
+        },
+        {
+          "locator": "&cntrl:ntp",
+          "path": "rep1/prod_0001.mdin"
+        },
+        {
+          "locator": "&cntrl:ntt",
+          "path": "rep1/prod_0002.mdin"
+        },
+        {
+          "locator": "&cntrl:ntb",
+          "path": "rep1/prod_0002.mdin"
+        },
+        {
+          "locator": "&cntrl:ntp",
+          "path": "rep1/prod_0002.mdin"
+        }
+      ],
+      "unit": null,
+      "value": "NPT"
+    },
+    "ff": {
+      "confidence": "derived",
+      "method": "declared (linked to the topology)",
+      "sources": [
+        {
+          "locator": "force-field declaration",
+          "path": "tleap.in"
+        }
+      ],
+      "unit": null,
+      "value": [
+        "Amber ff14SB"
+      ]
+    },
+    "framestep": {
+      "confidence": "exact",
+      "method": "derived:median time delta; ps->ns",
+      "sources": [
+        {
+          "locator": "median(diff(time))",
+          "path": "rep1/prod_0001.nc"
+        },
+        {
+          "locator": "median(diff(time))",
+          "path": "rep1/prod_0002.nc"
+        },
+        {
+          "locator": "median(diff(time))",
+          "path": "rep1/prod_0003.nc"
+        },
+        {
+          "locator": "median(diff(time))",
+          "path": "rep2/prod_0001.nc"
+        },
+        {
+          "locator": "median(diff(time))",
+          "path": "rep2/prod_0002.nc"
+        },
+        {
+          "locator": "median(diff(time))",
+          "path": "rep2/prod_0003.nc"
+        }
+      ],
+      "unit": "ns",
+      "value": 0.001
+    },
+    "input_topology_filepath": {
+      "confidence": "exact",
+      "method": "shared by all replicas",
+      "sources": [
+        {
+          "locator": "topology",
+          "path": "system.prmtop"
+        }
+      ],
+      "unit": null,
+      "value": "system.prmtop"
+    },
+    "program": {
+      "confidence": "exact",
+      "method": "engine log header (PMEMD)",
+      "note": "executable: pmemd.cuda",
+      "sources": [
+        {
+          "locator": "header",
+          "path": "rep1/prod_0001.mdout"
+        },
+        {
+          "locator": "header",
+          "path": "rep1/prod_0002.mdout"
+        },
+        {
+          "locator": "header",
+          "path": "rep1/prod_0003.mdout"
+        },
+        {
+          "locator": "header",
+          "path": "rep2/prod_0001.mdout"
+        },
+        {
+          "locator": "header",
+          "path": "rep2/prod_0002.mdout"
+        },
+        {
+          "locator": "header",
+          "path": "rep2/prod_0003.mdout"
+        }
+      ],
+      "unit": null,
+      "value": "AMBER"
+    },
+    "temp": {
+      "confidence": "exact",
+      "method": "stated",
+      "sources": [
+        {
+          "locator": "&cntrl:temp0",
+          "path": "rep1/prod_0001.mdin"
+        },
+        {
+          "locator": "&cntrl:temp0",
+          "path": "rep1/prod_0002.mdin"
+        },
+        {
+          "locator": "&cntrl:temp0",
+          "path": "rep1/prod_0003.mdin"
+        },
+        {
+          "locator": "&cntrl:temp0",
+          "path": "rep2/prod_0001.mdin"
+        },
+        {
+          "locator": "&cntrl:temp0",
+          "path": "rep2/prod_0002.mdin"
+        },
+        {
+          "locator": "&cntrl:temp0",
+          "path": "rep2/prod_0003.mdin"
+        }
+      ],
+      "unit": "K",
+      "value": 300.0
+    },
+    "timestep": {
+      "confidence": "exact",
+      "method": "stated; ps->fs",
+      "sources": [
+        {
+          "locator": "&cntrl:dt",
+          "path": "rep1/prod_0001.mdin"
+        },
+        {
+          "locator": "&cntrl:dt",
+          "path": "rep1/prod_0002.mdin"
+        },
+        {
+          "locator": "&cntrl:dt",
+          "path": "rep1/prod_0003.mdin"
+        },
+        {
+          "locator": "&cntrl:dt",
+          "path": "rep2/prod_0001.mdin"
+        },
+        {
+          "locator": "&cntrl:dt",
+          "path": "rep2/prod_0002.mdin"
+        },
+        {
+          "locator": "&cntrl:dt",
+          "path": "rep2/prod_0003.mdin"
+        }
+      ],
+      "unit": "fs",
+      "value": 2.0
+    },
+    "type": {
+      "confidence": "derived",
+      "method": "derived: every replica has a time-ordered trajectory",
+      "sources": [],
+      "unit": null,
+      "value": "trajectory"
+    },
+    "version": {
+      "confidence": "exact",
+      "method": "stated",
+      "sources": [
+        {
+          "locator": "header",
+          "path": "rep1/prod_0001.mdout"
+        },
+        {
+          "locator": "header",
+          "path": "rep1/prod_0002.mdout"
+        },
+        {
+          "locator": "header",
+          "path": "rep1/prod_0003.mdout"
+        },
+        {
+          "locator": "header",
+          "path": "rep2/prod_0001.mdout"
+        },
+        {
+          "locator": "header",
+          "path": "rep2/prod_0002.mdout"
+        },
+        {
+          "locator": "header",
+          "path": "rep2/prod_0003.mdout"
+        }
+      ],
+      "unit": null,
+      "value": "22"
+    },
+    "wat": {
+      "confidence": "derived",
+      "method": "declared in build log / topology",
+      "sources": [
+        {
+          "locator": "declared water model",
+          "path": "tleap.in"
+        },
+        {
+          "locator": "residue WAT (3 sites)",
+          "path": "system.prmtop"
+        }
+      ],
+      "unit": null,
+      "value": "TIP3P"
+    }
+  },
+  "findings": [
+    {
+      "code": "CONT000",
+      "data": {
+        "from": "prep/heat",
+        "gap_ps": 0.0,
+        "to": "prep/equil",
+        "tolerance_ps": 0.5
+      },
+      "message": "prep/heat -> prep/equil: gap 0 ps",
+      "severity": "info",
+      "subject": "prep/equil"
+    },
+    {
+      "code": "CONT000",
+      "data": {
+        "from": "prep/equil",
+        "gap_ps": 0.0,
+        "to": "rep1/prod_0001",
+        "tolerance_ps": 0.5
+      },
+      "message": "prep/equil -> rep1/prod_0001: gap 0 ps",
+      "severity": "info",
+      "subject": "rep1/prod_0001"
+    },
+    {
+      "code": "CONT000",
+      "data": {
+        "from": "rep1/prod_0001",
+        "gap_ps": 0.0,
+        "to": "rep1/prod_0002",
+        "tolerance_ps": 0.5
+      },
+      "message": "rep1/prod_0001 -> rep1/prod_0002: gap 0 ps",
+      "severity": "info",
+      "subject": "rep1/prod_0002"
+    },
+    {
+      "code": "CONT000",
+      "data": {
+        "from": "rep1/prod_0002",
+        "gap_ps": 0.0,
+        "to": "rep1/prod_0003",
+        "tolerance_ps": 0.5
+      },
+      "message": "rep1/prod_0002 -> rep1/prod_0003: gap 0 ps",
+      "severity": "info",
+      "subject": "rep1/prod_0003"
+    },
+    {
+      "code": "CONT000",
+      "data": {
+        "from": "prep/equil",
+        "gap_ps": 0.0,
+        "to": "rep2/prod_0001",
+        "tolerance_ps": 0.5
+      },
+      "message": "prep/equil -> rep2/prod_0001: gap 0 ps",
+      "severity": "info",
+      "subject": "rep2/prod_0001"
+    },
+    {
+      "code": "CONT000",
+      "data": {
+        "from": "rep2/prod_0001",
+        "gap_ps": 0.0,
+        "to": "rep2/prod_0002",
+        "tolerance_ps": 0.5
+      },
+      "message": "rep2/prod_0001 -> rep2/prod_0002: gap 0 ps",
+      "severity": "info",
+      "subject": "rep2/prod_0002"
+    },
+    {
+      "code": "CONT000",
+      "data": {
+        "from": "rep2/prod_0002",
+        "gap_ps": 0.0,
+        "to": "rep2/prod_0003",
+        "tolerance_ps": 0.5
+      },
+      "message": "rep2/prod_0002 -> rep2/prod_0003: gap 0 ps",
+      "severity": "info",
+      "subject": "rep2/prod_0003"
+    }
+  ],
+  "generated_at": "<TIME>",
+  "load_errors": [],
+  "mddbmeta_version": "0.1.0.dev0",
+  "mds": {
+    "rep1": {
+      "input_trajectory_filepaths": {
+        "confidence": "exact",
+        "method": "production chain order",
+        "sources": [
+          {
+            "locator": "production chain",
+            "path": "rep1/prod_0001.nc"
+          },
+          {
+            "locator": "production chain",
+            "path": "rep1/prod_0002.nc"
+          },
+          {
+            "locator": "production chain",
+            "path": "rep1/prod_0003.nc"
+          }
+        ],
+        "unit": null,
+        "value": [
+          "rep1/prod_0001.nc",
+          "rep1/prod_0002.nc",
+          "rep1/prod_0003.nc"
+        ]
+      },
+      "mdir": {
+        "confidence": "derived",
+        "method": "replica directory",
+        "sources": [],
+        "unit": null,
+        "value": "rep1"
+      },
+      "name": {
+        "confidence": "derived",
+        "method": "replica id",
+        "sources": [],
+        "unit": null,
+        "value": "rep1"
+      }
+    },
+    "rep2": {
+      "input_trajectory_filepaths": {
+        "confidence": "exact",
+        "method": "production chain order",
+        "sources": [
+          {
+            "locator": "production chain",
+            "path": "rep2/prod_0001.nc"
+          },
+          {
+            "locator": "production chain",
+            "path": "rep2/prod_0002.nc"
+          },
+          {
+            "locator": "production chain",
+            "path": "rep2/prod_0003.nc"
+          }
+        ],
+        "unit": null,
+        "value": [
+          "rep2/prod_0001.nc",
+          "rep2/prod_0002.nc",
+          "rep2/prod_0003.nc"
+        ]
+      },
+      "mdir": {
+        "confidence": "derived",
+        "method": "replica directory",
+        "sources": [],
+        "unit": null,
+        "value": "rep2"
+      },
+      "name": {
+        "confidence": "derived",
+        "method": "replica id",
+        "sources": [],
+        "unit": null,
+        "value": "rep2"
+      }
+    }
+  },
+  "root": "<ROOT>",
+  "schema_version": 1,
+  "skipped": {}
+}

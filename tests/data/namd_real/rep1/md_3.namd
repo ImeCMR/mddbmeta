@@ -1,0 +1,22 @@
+# Production segment 3
+source ../common.inc
+bincoordinates     md_2.coor
+binvelocities      md_2.vel
+extendedSystem     md_2.xsc
+firsttimestep      3000
+rigidBonds         all
+timestep           2.0
+langevin           on
+langevinDamping    1.0
+langevinTemp       300
+useGroupPressure   yes
+langevinPiston        on
+langevinPistonTarget  1.01325
+langevinPistonPeriod  100.0
+langevinPistonDecay   50.0
+langevinPistonTemp    300
+outputName         md_3
+dcdfreq            250
+restartfreq        250
+outputEnergies     250
+run                1500

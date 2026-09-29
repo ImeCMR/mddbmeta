@@ -1,0 +1,26 @@
+# NPT equilibration with harmonic restraints on protein heavy atoms
+source ../common.inc
+bincoordinates     heat.coor
+binvelocities      heat.vel
+extendedSystem     heat.xsc
+rigidBonds         all
+timestep           2.0
+langevin           on
+langevinDamping    1.0
+langevinTemp       300
+useGroupPressure   yes
+useFlexibleCell    no
+langevinPiston        on
+langevinPistonTarget  1.01325
+langevinPistonPeriod  100.0
+langevinPistonDecay   50.0
+langevinPistonTemp    300
+constraints        on
+consref            ../system/restraint.pdb
+conskfile          ../system/restraint.pdb
+conskcol           B
+outputName         eq
+dcdfreq            250
+restartfreq        250
+outputEnergies     250
+run                1000

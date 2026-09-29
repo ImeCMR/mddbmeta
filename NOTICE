@@ -1,0 +1,11 @@
+mddbmeta
+Copyright 2026 mddbmeta contributors
+
+This product is licensed under the Apache License, Version 2.0 (see LICENSE).
+
+Clean-room statement: mddbmeta's file parsers and algorithms are written
+independently from public file-format documentation (the AMBER reference
+manual, the NetCDF AMBER conventions, and MDDB-workflow's documented inputs
+schema). No source code from the AmberMeta project (BUSL-1.1) is imported,
+copied, or ported. The package must never depend on or import `ambermeta`;
+tests/test_clean_room.py enforces this.

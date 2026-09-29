@@ -1,0 +1,3135 @@
+{
+  "build_logs": [],
+  "engine": "amber",
+  "findings": [
+    {
+      "code": "CONT000",
+      "data": {
+        "from": "heat",
+        "gap_ps": 0.0,
+        "to": "equil",
+        "tolerance_ps": 0.5
+      },
+      "message": "heat -> equil: gap 0 ps",
+      "severity": "info",
+      "subject": "equil"
+    },
+    {
+      "code": "CONT000",
+      "data": {
+        "from": "equil",
+        "gap_ps": 0.0,
+        "to": "prod_0001",
+        "tolerance_ps": 0.5
+      },
+      "message": "equil -> prod_0001: gap 0 ps",
+      "severity": "info",
+      "subject": "prod_0001"
+    },
+    {
+      "code": "CONT000",
+      "data": {
+        "from": "prod_0001",
+        "gap_ps": 0.0,
+        "to": "prod_0002",
+        "tolerance_ps": 0.5
+      },
+      "message": "prod_0001 -> prod_0002: gap 0 ps",
+      "severity": "info",
+      "subject": "prod_0002"
+    },
+    {
+      "code": "CONT000",
+      "data": {
+        "from": "prod_0002",
+        "gap_ps": 0.0,
+        "to": "prod_0003",
+        "tolerance_ps": 0.5
+      },
+      "message": "prod_0002 -> prod_0003: gap 0 ps",
+      "severity": "info",
+      "subject": "prod_0003"
+    },
+    {
+      "code": "MINE002",
+      "data": {
+        "field": "wat"
+      },
+      "message": "wat: best guess TIP3P (candidates: TIP3P, SPC/E, OPC3, TIP3P-FB); confirm it",
+      "severity": "suggestion"
+    },
+    {
+      "code": "MINE001",
+      "data": {
+        "field": "ff"
+      },
+      "message": "ff: no build log (tleap) found; force fields are not recorded in AMBER run files",
+      "severity": "suggestion"
+    }
+  ],
+  "load_errors": [],
+  "md_mined": {
+    "replica_1": {
+      "input_trajectory_filepaths": {
+        "confidence": "exact",
+        "method": "production chain order",
+        "sources": [
+          {
+            "locator": "production chain",
+            "path": "prod_0001.nc"
+          },
+          {
+            "locator": "production chain",
+            "path": "prod_0002.nc"
+          },
+          {
+            "locator": "production chain",
+            "path": "prod_0003.nc"
+          }
+        ],
+        "unit": null,
+        "value": [
+          "prod_0001.nc",
+          "prod_0002.nc",
+          "prod_0003.nc"
+        ]
+      },
+      "mdir": {
+        "confidence": "derived",
+        "method": "new directory (replica lives in the project root)",
+        "sources": [],
+        "unit": null,
+        "value": "replica_1"
+      },
+      "name": {
+        "confidence": "derived",
+        "method": "replica id",
+        "sources": [],
+        "unit": null,
+        "value": "replica_1"
+      }
+    }
+  },
+  "mined": {
+    "boxtype": {
+      "confidence": "derived",
+      "method": "derived: box angles/lengths",
+      "sources": [
+        {
+          "locator": "box flag and dimensions",
+          "path": "system.prmtop"
+        },
+        {
+          "locator": "box line",
+          "path": "system.inpcrd"
+        }
+      ],
+      "unit": null,
+      "value": "Cubic"
+    },
+    "ensemble": {
+      "confidence": "derived",
+      "method": "ensemble from ntt/ntb/ntp",
+      "sources": [
+        {
+          "locator": "&cntrl:ntt",
+          "path": "prod_0001.mdin"
+        },
+        {
+          "locator": "&cntrl:ntb",
+          "path": "prod_0001.mdin"
+        },
+        {
+          "locator": "&cntrl:ntp",
+          "path": "prod_0001.mdin"
+        },
+        {
+          "locator": "&cntrl:ntt",
+          "path": "prod_0002.mdin"
+        },
+        {
+          "locator": "&cntrl:ntb",
+          "path": "prod_0002.mdin"
+        },
+        {
+          "locator": "&cntrl:ntp",
+          "path": "prod_0002.mdin"
+        }
+      ],
+      "unit": null,
+      "value": "NPT"
+    },
+    "ff": {
+      "confidence": "heuristic",
+      "method": "unstated",
+      "note": "no build log (tleap) found; force fields are not recorded in AMBER run files",
+      "sources": [],
+      "unit": null,
+      "value": null
+    },
+    "framestep": {
+      "confidence": "exact",
+      "method": "derived:median time delta; ps->ns",
+      "sources": [
+        {
+          "locator": "median(diff(time))",
+          "path": "prod_0001.nc"
+        },
+        {
+          "locator": "median(diff(time))",
+          "path": "prod_0002.nc"
+        },
+        {
+          "locator": "median(diff(time))",
+          "path": "prod_0003.nc"
+        }
+      ],
+      "unit": "ns",
+      "value": 0.001
+    },
+    "input_topology_filepath": {
+      "confidence": "exact",
+      "method": "shared by all replicas",
+      "sources": [
+        {
+          "locator": "topology",
+          "path": "system.prmtop"
+        }
+      ],
+      "unit": null,
+      "value": "system.prmtop"
+    },
+    "program": {
+      "confidence": "exact",
+      "method": "engine log header (PMEMD)",
+      "note": "executable: pmemd.cuda",
+      "sources": [
+        {
+          "locator": "header",
+          "path": "prod_0001.mdout"
+        },
+        {
+          "locator": "header",
+          "path": "prod_0002.mdout"
+        },
+        {
+          "locator": "header",
+          "path": "prod_0003.mdout"
+        }
+      ],
+      "unit": null,
+      "value": "AMBER"
+    },
+    "temp": {
+      "confidence": "exact",
+      "method": "stated",
+      "sources": [
+        {
+          "locator": "&cntrl:temp0",
+          "path": "prod_0001.mdin"
+        },
+        {
+          "locator": "&cntrl:temp0",
+          "path": "prod_0002.mdin"
+        },
+        {
+          "locator": "&cntrl:temp0",
+          "path": "prod_0003.mdin"
+        }
+      ],
+      "unit": "K",
+      "value": 300.0
+    },
+    "timestep": {
+      "confidence": "exact",
+      "method": "stated; ps->fs",
+      "sources": [
+        {
+          "locator": "&cntrl:dt",
+          "path": "prod_0001.mdin"
+        },
+        {
+          "locator": "&cntrl:dt",
+          "path": "prod_0002.mdin"
+        },
+        {
+          "locator": "&cntrl:dt",
+          "path": "prod_0003.mdin"
+        }
+      ],
+      "unit": "fs",
+      "value": 2.0
+    },
+    "type": {
+      "confidence": "derived",
+      "method": "derived: every replica has a time-ordered trajectory",
+      "sources": [],
+      "unit": null,
+      "value": "trajectory"
+    },
+    "version": {
+      "confidence": "exact",
+      "method": "stated",
+      "sources": [
+        {
+          "locator": "header",
+          "path": "prod_0001.mdout"
+        },
+        {
+          "locator": "header",
+          "path": "prod_0002.mdout"
+        },
+        {
+          "locator": "header",
+          "path": "prod_0003.mdout"
+        }
+      ],
+      "unit": null,
+      "value": "22"
+    },
+    "wat": {
+      "alternatives": [
+        "TIP3P",
+        "SPC/E",
+        "OPC3",
+        "TIP3P-FB"
+      ],
+      "confidence": "heuristic",
+      "method": "heuristic: 3-site water",
+      "note": "3-site water; candidates: TIP3P, SPC/E, OPC3, TIP3P-FB",
+      "sources": [
+        {
+          "locator": "residue WAT (3 sites)",
+          "path": "system.prmtop"
+        }
+      ],
+      "unit": null,
+      "value": "TIP3P"
+    }
+  },
+  "replicas": [
+    {
+      "dir": "",
+      "id": "replica_1",
+      "lineages": [
+        [
+          "min",
+          "heat",
+          "equil",
+          "prod_0001",
+          "prod_0002",
+          "prod_0003"
+        ]
+      ],
+      "production_chain": [
+        "prod_0001",
+        "prod_0002",
+        "prod_0003"
+      ],
+      "steps": [
+        "equil",
+        "heat",
+        "min",
+        "prod_0001",
+        "prod_0002",
+        "prod_0003"
+      ],
+      "topology": "system.prmtop"
+    }
+  ],
+  "root": "<ROOT>",
+  "starting_structure": {
+    "format": "rst7",
+    "kind": "coords",
+    "path": "system.inpcrd"
+  },
+  "steps": [
+    {
+      "dir": "",
+      "engine": "amber",
+      "files": {
+        "control": {
+          "format": "mdin",
+          "kind": "control",
+          "path": "equil.mdin"
+        },
+        "input_coords": {
+          "format": "rst7",
+          "kind": "coords",
+          "path": "heat.rst7"
+        },
+        "log": {
+          "format": "mdout",
+          "kind": "log",
+          "path": "equil.mdout"
+        },
+        "output_restart": {
+          "format": "rst7",
+          "kind": "coords",
+          "path": "equil.rst7"
+        },
+        "topology": {
+          "format": "prmtop",
+          "kind": "topology",
+          "path": "system.prmtop"
+        },
+        "trajectory": {
+          "format": "netcdf_traj",
+          "kind": "trajectory",
+          "path": "equil.nc"
+        }
+      },
+      "id": "equil",
+      "input_coords": {
+        "method": "engine log",
+        "path": "heat.rst7",
+        "ref": "heat",
+        "source": "step"
+      },
+      "name": "equil",
+      "replica": "replica_1",
+      "role": {
+        "confidence": "heuristic",
+        "method": "name token",
+        "sources": [
+          {
+            "locator": "name/content",
+            "path": "equil.mdin"
+          }
+        ],
+        "unit": null,
+        "value": "equilibration"
+      },
+      "runtime": {
+        "completed": {
+          "confidence": "exact",
+          "method": "stated",
+          "sources": [
+            {
+              "locator": "TIMINGS",
+              "path": "equil.mdout"
+            }
+          ],
+          "unit": null,
+          "value": true
+        },
+        "end_time_ps": {
+          "confidence": "derived",
+          "method": "start + nstlim*dt",
+          "sources": [
+            {
+              "locator": "begin time read from input coords",
+              "path": "equil.mdout"
+            },
+            {
+              "locator": "&cntrl:nstlim",
+              "path": "equil.mdin"
+            },
+            {
+              "locator": "&cntrl:dt",
+              "path": "equil.mdin"
+            }
+          ],
+          "unit": "ps",
+          "value": 8.0
+        },
+        "natom": {
+          "confidence": "exact",
+          "method": "stated",
+          "sources": [
+            {
+              "locator": "RESOURCE USE:NATOM",
+              "path": "equil.mdout"
+            }
+          ],
+          "unit": null,
+          "value": 42
+        },
+        "nsteps_completed": {
+          "confidence": "exact",
+          "method": "stated",
+          "sources": [
+            {
+              "locator": "last energy record",
+              "path": "equil.mdout"
+            }
+          ],
+          "unit": null,
+          "value": 2000
+        },
+        "program": {
+          "confidence": "exact",
+          "method": "stated",
+          "sources": [
+            {
+              "locator": "header",
+              "path": "equil.mdout"
+            }
+          ],
+          "unit": null,
+          "value": "PMEMD"
+        },
+        "start_time_ps": {
+          "confidence": "exact",
+          "method": "stated",
+          "sources": [
+            {
+              "locator": "begin time read from input coords",
+              "path": "equil.mdout"
+            }
+          ],
+          "unit": "ps",
+          "value": 4.0
+        },
+        "variant": {
+          "confidence": "exact",
+          "method": "stated",
+          "sources": [
+            {
+              "locator": "Executable path",
+              "path": "equil.mdout"
+            }
+          ],
+          "unit": null,
+          "value": "pmemd.cuda"
+        },
+        "version": {
+          "confidence": "exact",
+          "method": "stated",
+          "sources": [
+            {
+              "locator": "header",
+              "path": "equil.mdout"
+            }
+          ],
+          "unit": null,
+          "value": "22"
+        },
+        "wall_time_s": {
+          "confidence": "exact",
+          "method": "stated",
+          "sources": [
+            {
+              "locator": "Total wall time",
+              "path": "equil.mdout"
+            }
+          ],
+          "unit": "s",
+          "value": 42.0
+        }
+      },
+      "settings": {
+        "barostat": {
+          "confidence": "derived",
+          "method": "map:barostat (engine_default)",
+          "note": "not stated in the file; engine default applied",
+          "sources": [
+            {
+              "locator": "&cntrl:barostat",
+              "path": "equil.mdin"
+            }
+          ],
+          "unit": null,
+          "value": "berendsen"
+        },
+        "constant_pressure": {
+          "confidence": "derived",
+          "method": "ntp>0 or ntb==2",
+          "sources": [
+            {
+              "locator": "&cntrl:ntp",
+              "path": "equil.mdin"
+            },
+            {
+              "locator": "&cntrl:ntb",
+              "path": "equil.mdin"
+            }
+          ],
+          "unit": null,
+          "value": true
+        },
+        "cutoff_A": {
+          "confidence": "exact",
+          "method": "stated",
+          "sources": [
+            {
+              "locator": "&cntrl:cut",
+              "path": "equil.mdin"
+            }
+          ],
+          "unit": "A",
+          "value": 9.0
+        },
+        "dt_ps": {
+          "confidence": "exact",
+          "method": "stated",
+          "sources": [
+            {
+              "locator": "&cntrl:dt",
+              "path": "equil.mdin"
+            }
+          ],
+          "unit": "ps",
+          "value": 0.002
+        },
+        "ensemble": {
+          "confidence": "derived",
+          "method": "ensemble from ntt/ntb/ntp",
+          "sources": [
+            {
+              "locator": "&cntrl:ntt",
+              "path": "equil.mdin"
+            },
+            {
+              "locator": "&cntrl:ntb",
+              "path": "equil.mdin"
+            },
+            {
+              "locator": "&cntrl:ntp",
+              "path": "equil.mdin"
+            }
+          ],
+          "unit": null,
+          "value": "NPT"
+        },
+        "implicit_solvent": {
+          "confidence": "exact",
+          "method": "map:igb (engine_report)",
+          "sources": [
+            {
+              "locator": "CONTROL DATA:igb",
+              "path": "equil.mdout"
+            }
+          ],
+          "unit": null,
+          "value": false
+        },
+        "minimization": {
+          "confidence": "exact",
+          "method": "stated",
+          "sources": [
+            {
+              "locator": "&cntrl:imin",
+              "path": "equil.mdin"
+            }
+          ],
+          "unit": null,
+          "value": false
+        },
+        "nsteps": {
+          "confidence": "exact",
+          "method": "stated",
+          "sources": [
+            {
+              "locator": "&cntrl:nstlim",
+              "path": "equil.mdin"
+            }
+          ],
+          "unit": null,
+          "value": 2000
+        },
+        "periodic": {
+          "confidence": "exact",
+          "method": "map:ntb (stated)",
+          "sources": [
+            {
+              "locator": "&cntrl:ntb",
+              "path": "equil.mdin"
+            }
+          ],
+          "unit": null,
+          "value": true
+        },
+        "restart": {
+          "confidence": "exact",
+          "method": "map:irest (stated)",
+          "sources": [
+            {
+              "locator": "&cntrl:irest",
+              "path": "equil.mdin"
+            }
+          ],
+          "unit": null,
+          "value": true
+        },
+        "restart_interval_steps": {
+          "confidence": "exact",
+          "method": "engine_report",
+          "sources": [
+            {
+              "locator": "CONTROL DATA:ntwr",
+              "path": "equil.mdout"
+            }
+          ],
+          "unit": null,
+          "value": 2000
+        },
+        "restraints": {
+          "confidence": "exact",
+          "method": "map:ntr (stated)",
+          "sources": [
+            {
+              "locator": "&cntrl:ntr",
+              "path": "equil.mdin"
+            }
+          ],
+          "unit": null,
+          "value": true
+        },
+        "temp_K": {
+          "confidence": "exact",
+          "method": "stated",
+          "sources": [
+            {
+              "locator": "&cntrl:temp0",
+              "path": "equil.mdin"
+            }
+          ],
+          "unit": "K",
+          "value": 300.0
+        },
+        "temp_initial_K": {
+          "confidence": "exact",
+          "method": "engine_report",
+          "sources": [
+            {
+              "locator": "CONTROL DATA:tempi",
+              "path": "equil.mdout"
+            }
+          ],
+          "unit": "K",
+          "value": 0.0
+        },
+        "temp_ramp": {
+          "confidence": "derived",
+          "method": "&wt TEMP0 value1 != value2",
+          "sources": [
+            {
+              "locator": "CONTROL DATA:nmropt",
+              "path": "equil.mdout"
+            }
+          ],
+          "unit": null,
+          "value": false
+        },
+        "thermostat": {
+          "confidence": "exact",
+          "method": "map:ntt (stated)",
+          "sources": [
+            {
+              "locator": "&cntrl:ntt",
+              "path": "equil.mdin"
+            }
+          ],
+          "unit": null,
+          "value": "langevin"
+        },
+        "traj_interval_steps": {
+          "confidence": "exact",
+          "method": "stated",
+          "sources": [
+            {
+              "locator": "&cntrl:ntwx",
+              "path": "equil.mdin"
+            }
+          ],
+          "unit": null,
+          "value": 500
+        }
+      },
+      "status": "done",
+      "trajectory": {
+        "first_time_ps": {
+          "confidence": "exact",
+          "method": "stated",
+          "sources": [
+            {
+              "locator": "time[0]",
+              "path": "equil.nc"
+            }
+          ],
+          "unit": "ps",
+          "value": 5.0
+        },
+        "format": {
+          "confidence": "exact",
+          "method": "stated",
+          "sources": [
+            {
+              "locator": "content",
+              "path": "equil.nc"
+            }
+          ],
+          "unit": null,
+          "value": "netcdf_traj"
+        },
+        "frame_interval_ps": {
+          "confidence": "exact",
+          "method": "derived:median time delta",
+          "sources": [
+            {
+              "locator": "median(diff(time))",
+              "path": "equil.nc"
+            }
+          ],
+          "unit": "ps",
+          "value": 1.0
+        },
+        "last_time_ps": {
+          "confidence": "exact",
+          "method": "stated",
+          "sources": [
+            {
+              "locator": "time[-1]",
+              "path": "equil.nc"
+            }
+          ],
+          "unit": "ps",
+          "value": 8.0
+        },
+        "n_frames": {
+          "confidence": "exact",
+          "method": "stated",
+          "sources": [
+            {
+              "locator": "dimension frame",
+              "path": "equil.nc"
+            }
+          ],
+          "unit": null,
+          "value": 4
+        },
+        "natom": {
+          "confidence": "exact",
+          "method": "stated",
+          "sources": [
+            {
+              "locator": "dimension atom",
+              "path": "equil.nc"
+            }
+          ],
+          "unit": null,
+          "value": 42
+        },
+        "program": {
+          "confidence": "exact",
+          "method": "stated",
+          "sources": [
+            {
+              "locator": "attribute program",
+              "path": "equil.nc"
+            }
+          ],
+          "unit": null,
+          "value": "pmemd.cuda"
+        },
+        "program_version": {
+          "confidence": "exact",
+          "method": "stated",
+          "sources": [
+            {
+              "locator": "attribute programVersion",
+              "path": "equil.nc"
+            }
+          ],
+          "unit": null,
+          "value": "22.0"
+        }
+      }
+    },
+    {
+      "dir": "",
+      "engine": "amber",
+      "files": {
+        "control": {
+          "format": "mdin",
+          "kind": "control",
+          "path": "heat.mdin"
+        },
+        "input_coords": {
+          "format": "rst7",
+          "kind": "coords",
+          "path": "min.rst7"
+        },
+        "log": {
+          "format": "mdout",
+          "kind": "log",
+          "path": "heat.mdout"
+        },
+        "output_restart": {
+          "format": "rst7",
+          "kind": "coords",
+          "path": "heat.rst7"
+        },
+        "topology": {
+          "format": "prmtop",
+          "kind": "topology",
+          "path": "system.prmtop"
+        },
+        "trajectory": {
+          "format": "netcdf_traj",
+          "kind": "trajectory",
+          "path": "heat.nc"
+        }
+      },
+      "id": "heat",
+      "input_coords": {
+        "method": "engine log",
+        "path": "min.rst7",
+        "ref": "min",
+        "source": "step"
+      },
+      "name": "heat",
+      "replica": "replica_1",
+      "role": {
+        "confidence": "heuristic",
+        "method": "name token",
+        "sources": [
+          {
+            "locator": "name/content",
+            "path": "heat.mdin"
+          }
+        ],
+        "unit": null,
+        "value": "heating"
+      },
+      "runtime": {
+        "completed": {
+          "confidence": "exact",
+          "method": "stated",
+          "sources": [
+            {
+              "locator": "TIMINGS",
+              "path": "heat.mdout"
+            }
+          ],
+          "unit": null,
+          "value": true
+        },
+        "end_time_ps": {
+          "confidence": "derived",
+          "method": "start + nstlim*dt",
+          "sources": [
+            {
+              "locator": "CONTROL DATA:t",
+              "path": "heat.mdout"
+            },
+            {
+              "locator": "&cntrl:nstlim",
+              "path": "heat.mdin"
+            },
+            {
+              "locator": "&cntrl:dt",
+              "path": "heat.mdin"
+            }
+          ],
+          "unit": "ps",
+          "value": 4.0
+        },
+        "natom": {
+          "confidence": "exact",
+          "method": "stated",
+          "sources": [
+            {
+              "locator": "RESOURCE USE:NATOM",
+              "path": "heat.mdout"
+            }
+          ],
+          "unit": null,
+          "value": 42
+        },
+        "nsteps_completed": {
+          "confidence": "exact",
+          "method": "stated",
+          "sources": [
+            {
+              "locator": "last energy record",
+              "path": "heat.mdout"
+            }
+          ],
+          "unit": null,
+          "value": 2000
+        },
+        "program": {
+          "confidence": "exact",
+          "method": "stated",
+          "sources": [
+            {
+              "locator": "header",
+              "path": "heat.mdout"
+            }
+          ],
+          "unit": null,
+          "value": "PMEMD"
+        },
+        "start_time_ps": {
+          "confidence": "exact",
+          "method": "engine_report",
+          "sources": [
+            {
+              "locator": "CONTROL DATA:t",
+              "path": "heat.mdout"
+            }
+          ],
+          "unit": "ps",
+          "value": 0.0
+        },
+        "variant": {
+          "confidence": "exact",
+          "method": "stated",
+          "sources": [
+            {
+              "locator": "Executable path",
+              "path": "heat.mdout"
+            }
+          ],
+          "unit": null,
+          "value": "pmemd.cuda"
+        },
+        "version": {
+          "confidence": "exact",
+          "method": "stated",
+          "sources": [
+            {
+              "locator": "header",
+              "path": "heat.mdout"
+            }
+          ],
+          "unit": null,
+          "value": "22"
+        },
+        "wall_time_s": {
+          "confidence": "exact",
+          "method": "stated",
+          "sources": [
+            {
+              "locator": "Total wall time",
+              "path": "heat.mdout"
+            }
+          ],
+          "unit": "s",
+          "value": 42.0
+        }
+      },
+      "settings": {
+        "barostat": {
+          "confidence": "derived",
+          "method": "no pressure coupling",
+          "sources": [
+            {
+              "locator": "&cntrl:ntp",
+              "path": "heat.mdin"
+            },
+            {
+              "locator": "&cntrl:ntb",
+              "path": "heat.mdin"
+            }
+          ],
+          "unit": null,
+          "value": "none"
+        },
+        "constant_pressure": {
+          "confidence": "derived",
+          "method": "ntp>0 or ntb==2",
+          "sources": [
+            {
+              "locator": "&cntrl:ntp",
+              "path": "heat.mdin"
+            },
+            {
+              "locator": "&cntrl:ntb",
+              "path": "heat.mdin"
+            }
+          ],
+          "unit": null,
+          "value": false
+        },
+        "cutoff_A": {
+          "confidence": "exact",
+          "method": "stated",
+          "sources": [
+            {
+              "locator": "&cntrl:cut",
+              "path": "heat.mdin"
+            }
+          ],
+          "unit": "A",
+          "value": 9.0
+        },
+        "dt_ps": {
+          "confidence": "exact",
+          "method": "stated",
+          "sources": [
+            {
+              "locator": "&cntrl:dt",
+              "path": "heat.mdin"
+            }
+          ],
+          "unit": "ps",
+          "value": 0.002
+        },
+        "ensemble": {
+          "confidence": "derived",
+          "method": "ensemble from ntt/ntb/ntp",
+          "sources": [
+            {
+              "locator": "&cntrl:ntt",
+              "path": "heat.mdin"
+            },
+            {
+              "locator": "&cntrl:ntb",
+              "path": "heat.mdin"
+            },
+            {
+              "locator": "&cntrl:ntp",
+              "path": "heat.mdin"
+            }
+          ],
+          "unit": null,
+          "value": "NVT"
+        },
+        "implicit_solvent": {
+          "confidence": "exact",
+          "method": "map:igb (engine_report)",
+          "sources": [
+            {
+              "locator": "CONTROL DATA:igb",
+              "path": "heat.mdout"
+            }
+          ],
+          "unit": null,
+          "value": false
+        },
+        "minimization": {
+          "confidence": "exact",
+          "method": "stated",
+          "sources": [
+            {
+              "locator": "&cntrl:imin",
+              "path": "heat.mdin"
+            }
+          ],
+          "unit": null,
+          "value": false
+        },
+        "nsteps": {
+          "confidence": "exact",
+          "method": "stated",
+          "sources": [
+            {
+              "locator": "&cntrl:nstlim",
+              "path": "heat.mdin"
+            }
+          ],
+          "unit": null,
+          "value": 2000
+        },
+        "periodic": {
+          "confidence": "exact",
+          "method": "map:ntb (stated)",
+          "sources": [
+            {
+              "locator": "&cntrl:ntb",
+              "path": "heat.mdin"
+            }
+          ],
+          "unit": null,
+          "value": true
+        },
+        "restart": {
+          "confidence": "exact",
+          "method": "map:irest (stated)",
+          "sources": [
+            {
+              "locator": "&cntrl:irest",
+              "path": "heat.mdin"
+            }
+          ],
+          "unit": null,
+          "value": false
+        },
+        "restart_interval_steps": {
+          "confidence": "exact",
+          "method": "engine_report",
+          "sources": [
+            {
+              "locator": "CONTROL DATA:ntwr",
+              "path": "heat.mdout"
+            }
+          ],
+          "unit": null,
+          "value": 2000
+        },
+        "restraints": {
+          "confidence": "exact",
+          "method": "map:ntr (stated)",
+          "sources": [
+            {
+              "locator": "&cntrl:ntr",
+              "path": "heat.mdin"
+            }
+          ],
+          "unit": null,
+          "value": true
+        },
+        "temp_K": {
+          "confidence": "exact",
+          "method": "stated",
+          "sources": [
+            {
+              "locator": "&cntrl:temp0",
+              "path": "heat.mdin"
+            }
+          ],
+          "unit": "K",
+          "value": 300.0
+        },
+        "temp_initial_K": {
+          "confidence": "exact",
+          "method": "stated",
+          "sources": [
+            {
+              "locator": "&cntrl:tempi",
+              "path": "heat.mdin"
+            }
+          ],
+          "unit": "K",
+          "value": 0.0
+        },
+        "temp_ramp": {
+          "confidence": "derived",
+          "method": "&wt TEMP0 value1 != value2",
+          "sources": [
+            {
+              "locator": "CONTROL DATA:nmropt",
+              "path": "heat.mdout"
+            }
+          ],
+          "unit": null,
+          "value": false
+        },
+        "thermostat": {
+          "confidence": "exact",
+          "method": "map:ntt (stated)",
+          "sources": [
+            {
+              "locator": "&cntrl:ntt",
+              "path": "heat.mdin"
+            }
+          ],
+          "unit": null,
+          "value": "langevin"
+        },
+        "traj_interval_steps": {
+          "confidence": "exact",
+          "method": "stated",
+          "sources": [
+            {
+              "locator": "&cntrl:ntwx",
+              "path": "heat.mdin"
+            }
+          ],
+          "unit": null,
+          "value": 500
+        }
+      },
+      "status": "done",
+      "trajectory": {
+        "first_time_ps": {
+          "confidence": "exact",
+          "method": "stated",
+          "sources": [
+            {
+              "locator": "time[0]",
+              "path": "heat.nc"
+            }
+          ],
+          "unit": "ps",
+          "value": 1.0
+        },
+        "format": {
+          "confidence": "exact",
+          "method": "stated",
+          "sources": [
+            {
+              "locator": "content",
+              "path": "heat.nc"
+            }
+          ],
+          "unit": null,
+          "value": "netcdf_traj"
+        },
+        "frame_interval_ps": {
+          "confidence": "exact",
+          "method": "derived:median time delta",
+          "sources": [
+            {
+              "locator": "median(diff(time))",
+              "path": "heat.nc"
+            }
+          ],
+          "unit": "ps",
+          "value": 1.0
+        },
+        "last_time_ps": {
+          "confidence": "exact",
+          "method": "stated",
+          "sources": [
+            {
+              "locator": "time[-1]",
+              "path": "heat.nc"
+            }
+          ],
+          "unit": "ps",
+          "value": 4.0
+        },
+        "n_frames": {
+          "confidence": "exact",
+          "method": "stated",
+          "sources": [
+            {
+              "locator": "dimension frame",
+              "path": "heat.nc"
+            }
+          ],
+          "unit": null,
+          "value": 4
+        },
+        "natom": {
+          "confidence": "exact",
+          "method": "stated",
+          "sources": [
+            {
+              "locator": "dimension atom",
+              "path": "heat.nc"
+            }
+          ],
+          "unit": null,
+          "value": 42
+        },
+        "program": {
+          "confidence": "exact",
+          "method": "stated",
+          "sources": [
+            {
+              "locator": "attribute program",
+              "path": "heat.nc"
+            }
+          ],
+          "unit": null,
+          "value": "pmemd.cuda"
+        },
+        "program_version": {
+          "confidence": "exact",
+          "method": "stated",
+          "sources": [
+            {
+              "locator": "attribute programVersion",
+              "path": "heat.nc"
+            }
+          ],
+          "unit": null,
+          "value": "22.0"
+        }
+      }
+    },
+    {
+      "dir": "",
+      "engine": "amber",
+      "files": {
+        "control": {
+          "format": "mdin",
+          "kind": "control",
+          "path": "min.mdin"
+        },
+        "input_coords": {
+          "format": "rst7",
+          "kind": "coords",
+          "path": "system.inpcrd"
+        },
+        "log": {
+          "format": "mdout",
+          "kind": "log",
+          "path": "min.mdout"
+        },
+        "output_restart": {
+          "format": "rst7",
+          "kind": "coords",
+          "path": "min.rst7"
+        },
+        "topology": {
+          "format": "prmtop",
+          "kind": "topology",
+          "path": "system.prmtop"
+        }
+      },
+      "id": "min",
+      "input_coords": {
+        "method": "engine log",
+        "path": "system.inpcrd",
+        "source": "starting_structure"
+      },
+      "name": "min",
+      "replica": "replica_1",
+      "role": {
+        "confidence": "exact",
+        "method": "content:minimization flag",
+        "sources": [
+          {
+            "locator": "&cntrl:imin",
+            "path": "min.mdin"
+          }
+        ],
+        "unit": null,
+        "value": "minimization"
+      },
+      "runtime": {
+        "completed": {
+          "confidence": "exact",
+          "method": "stated",
+          "sources": [
+            {
+              "locator": "TIMINGS",
+              "path": "min.mdout"
+            }
+          ],
+          "unit": null,
+          "value": true
+        },
+        "natom": {
+          "confidence": "exact",
+          "method": "stated",
+          "sources": [
+            {
+              "locator": "RESOURCE USE:NATOM",
+              "path": "min.mdout"
+            }
+          ],
+          "unit": null,
+          "value": 42
+        },
+        "nsteps_completed": {
+          "confidence": "exact",
+          "method": "stated",
+          "sources": [
+            {
+              "locator": "last minimization record",
+              "path": "min.mdout"
+            }
+          ],
+          "unit": null,
+          "value": 500
+        },
+        "program": {
+          "confidence": "exact",
+          "method": "stated",
+          "sources": [
+            {
+              "locator": "header",
+              "path": "min.mdout"
+            }
+          ],
+          "unit": null,
+          "value": "PMEMD"
+        },
+        "variant": {
+          "confidence": "exact",
+          "method": "stated",
+          "sources": [
+            {
+              "locator": "Executable path",
+              "path": "min.mdout"
+            }
+          ],
+          "unit": null,
+          "value": "pmemd.cuda"
+        },
+        "version": {
+          "confidence": "exact",
+          "method": "stated",
+          "sources": [
+            {
+              "locator": "header",
+              "path": "min.mdout"
+            }
+          ],
+          "unit": null,
+          "value": "22"
+        },
+        "wall_time_s": {
+          "confidence": "exact",
+          "method": "stated",
+          "sources": [
+            {
+              "locator": "Total wall time",
+              "path": "min.mdout"
+            }
+          ],
+          "unit": "s",
+          "value": 42.0
+        }
+      },
+      "settings": {
+        "barostat": {
+          "confidence": "derived",
+          "method": "no pressure coupling",
+          "sources": [
+            {
+              "locator": "&cntrl:ntp",
+              "path": "min.mdin"
+            },
+            {
+              "locator": "&cntrl:ntb",
+              "path": "min.mdin"
+            }
+          ],
+          "unit": null,
+          "value": "none"
+        },
+        "constant_pressure": {
+          "confidence": "derived",
+          "method": "ntp>0 or ntb==2",
+          "sources": [
+            {
+              "locator": "&cntrl:ntp",
+              "path": "min.mdin"
+            },
+            {
+              "locator": "&cntrl:ntb",
+              "path": "min.mdin"
+            }
+          ],
+          "unit": null,
+          "value": false
+        },
+        "cutoff_A": {
+          "confidence": "exact",
+          "method": "stated",
+          "sources": [
+            {
+              "locator": "&cntrl:cut",
+              "path": "min.mdin"
+            }
+          ],
+          "unit": "A",
+          "value": 9.0
+        },
+        "implicit_solvent": {
+          "confidence": "exact",
+          "method": "map:igb (engine_report)",
+          "sources": [
+            {
+              "locator": "CONTROL DATA:igb",
+              "path": "min.mdout"
+            }
+          ],
+          "unit": null,
+          "value": false
+        },
+        "minimization": {
+          "confidence": "exact",
+          "method": "stated",
+          "sources": [
+            {
+              "locator": "&cntrl:imin",
+              "path": "min.mdin"
+            }
+          ],
+          "unit": null,
+          "value": true
+        },
+        "nsteps": {
+          "confidence": "exact",
+          "method": "stated",
+          "sources": [
+            {
+              "locator": "&cntrl:maxcyc",
+              "path": "min.mdin"
+            }
+          ],
+          "unit": null,
+          "value": 500
+        },
+        "periodic": {
+          "confidence": "exact",
+          "method": "map:ntb (stated)",
+          "sources": [
+            {
+              "locator": "&cntrl:ntb",
+              "path": "min.mdin"
+            }
+          ],
+          "unit": null,
+          "value": true
+        },
+        "restart": {
+          "confidence": "exact",
+          "method": "map:irest (engine_report)",
+          "sources": [
+            {
+              "locator": "CONTROL DATA:irest",
+              "path": "min.mdout"
+            }
+          ],
+          "unit": null,
+          "value": false
+        },
+        "restart_interval_steps": {
+          "confidence": "exact",
+          "method": "engine_report",
+          "sources": [
+            {
+              "locator": "CONTROL DATA:ntwr",
+              "path": "min.mdout"
+            }
+          ],
+          "unit": null,
+          "value": 1
+        },
+        "restraints": {
+          "confidence": "exact",
+          "method": "map:ntr (stated)",
+          "sources": [
+            {
+              "locator": "&cntrl:ntr",
+              "path": "min.mdin"
+            }
+          ],
+          "unit": null,
+          "value": true
+        },
+        "thermostat": {
+          "confidence": "derived",
+          "method": "map:ntt (engine_default)",
+          "note": "not stated in the file; engine default applied",
+          "sources": [
+            {
+              "locator": "&cntrl:ntt",
+              "path": "min.mdin"
+            }
+          ],
+          "unit": null,
+          "value": "none"
+        }
+      },
+      "status": "done"
+    },
+    {
+      "dir": "",
+      "engine": "amber",
+      "family": "prod",
+      "files": {
+        "control": {
+          "format": "mdin",
+          "kind": "control",
+          "path": "prod_0001.mdin"
+        },
+        "input_coords": {
+          "format": "rst7",
+          "kind": "coords",
+          "path": "equil.rst7"
+        },
+        "log": {
+          "format": "mdout",
+          "kind": "log",
+          "path": "prod_0001.mdout"
+        },
+        "output_restart": {
+          "format": "rst7",
+          "kind": "coords",
+          "path": "prod_0001.rst7"
+        },
+        "topology": {
+          "format": "prmtop",
+          "kind": "topology",
+          "path": "system.prmtop"
+        },
+        "trajectory": {
+          "format": "netcdf_traj",
+          "kind": "trajectory",
+          "path": "prod_0001.nc"
+        }
+      },
+      "id": "prod_0001",
+      "input_coords": {
+        "method": "engine log",
+        "path": "equil.rst7",
+        "ref": "equil",
+        "source": "step"
+      },
+      "name": "prod_0001",
+      "replica": "replica_1",
+      "role": {
+        "confidence": "heuristic",
+        "method": "name token",
+        "sources": [
+          {
+            "locator": "name/content",
+            "path": "prod_0001.mdin"
+          }
+        ],
+        "unit": null,
+        "value": "production"
+      },
+      "runtime": {
+        "completed": {
+          "confidence": "exact",
+          "method": "stated",
+          "sources": [
+            {
+              "locator": "TIMINGS",
+              "path": "prod_0001.mdout"
+            }
+          ],
+          "unit": null,
+          "value": true
+        },
+        "end_time_ps": {
+          "confidence": "derived",
+          "method": "start + nstlim*dt",
+          "sources": [
+            {
+              "locator": "begin time read from input coords",
+              "path": "prod_0001.mdout"
+            },
+            {
+              "locator": "&cntrl:nstlim",
+              "path": "prod_0001.mdin"
+            },
+            {
+              "locator": "&cntrl:dt",
+              "path": "prod_0001.mdin"
+            }
+          ],
+          "unit": "ps",
+          "value": 18.0
+        },
+        "natom": {
+          "confidence": "exact",
+          "method": "stated",
+          "sources": [
+            {
+              "locator": "RESOURCE USE:NATOM",
+              "path": "prod_0001.mdout"
+            }
+          ],
+          "unit": null,
+          "value": 42
+        },
+        "nsteps_completed": {
+          "confidence": "exact",
+          "method": "stated",
+          "sources": [
+            {
+              "locator": "last energy record",
+              "path": "prod_0001.mdout"
+            }
+          ],
+          "unit": null,
+          "value": 5000
+        },
+        "program": {
+          "confidence": "exact",
+          "method": "stated",
+          "sources": [
+            {
+              "locator": "header",
+              "path": "prod_0001.mdout"
+            }
+          ],
+          "unit": null,
+          "value": "PMEMD"
+        },
+        "start_time_ps": {
+          "confidence": "exact",
+          "method": "stated",
+          "sources": [
+            {
+              "locator": "begin time read from input coords",
+              "path": "prod_0001.mdout"
+            }
+          ],
+          "unit": "ps",
+          "value": 8.0
+        },
+        "variant": {
+          "confidence": "exact",
+          "method": "stated",
+          "sources": [
+            {
+              "locator": "Executable path",
+              "path": "prod_0001.mdout"
+            }
+          ],
+          "unit": null,
+          "value": "pmemd.cuda"
+        },
+        "version": {
+          "confidence": "exact",
+          "method": "stated",
+          "sources": [
+            {
+              "locator": "header",
+              "path": "prod_0001.mdout"
+            }
+          ],
+          "unit": null,
+          "value": "22"
+        },
+        "wall_time_s": {
+          "confidence": "exact",
+          "method": "stated",
+          "sources": [
+            {
+              "locator": "Total wall time",
+              "path": "prod_0001.mdout"
+            }
+          ],
+          "unit": "s",
+          "value": 42.0
+        }
+      },
+      "seq_index": 1,
+      "settings": {
+        "barostat": {
+          "confidence": "exact",
+          "method": "map:barostat (stated)",
+          "sources": [
+            {
+              "locator": "&cntrl:barostat",
+              "path": "prod_0001.mdin"
+            }
+          ],
+          "unit": null,
+          "value": "monte-carlo"
+        },
+        "constant_pressure": {
+          "confidence": "derived",
+          "method": "ntp>0 or ntb==2",
+          "sources": [
+            {
+              "locator": "&cntrl:ntp",
+              "path": "prod_0001.mdin"
+            },
+            {
+              "locator": "&cntrl:ntb",
+              "path": "prod_0001.mdin"
+            }
+          ],
+          "unit": null,
+          "value": true
+        },
+        "cutoff_A": {
+          "confidence": "exact",
+          "method": "stated",
+          "sources": [
+            {
+              "locator": "&cntrl:cut",
+              "path": "prod_0001.mdin"
+            }
+          ],
+          "unit": "A",
+          "value": 9.0
+        },
+        "dt_ps": {
+          "confidence": "exact",
+          "method": "stated",
+          "sources": [
+            {
+              "locator": "&cntrl:dt",
+              "path": "prod_0001.mdin"
+            }
+          ],
+          "unit": "ps",
+          "value": 0.002
+        },
+        "ensemble": {
+          "confidence": "derived",
+          "method": "ensemble from ntt/ntb/ntp",
+          "sources": [
+            {
+              "locator": "&cntrl:ntt",
+              "path": "prod_0001.mdin"
+            },
+            {
+              "locator": "&cntrl:ntb",
+              "path": "prod_0001.mdin"
+            },
+            {
+              "locator": "&cntrl:ntp",
+              "path": "prod_0001.mdin"
+            }
+          ],
+          "unit": null,
+          "value": "NPT"
+        },
+        "implicit_solvent": {
+          "confidence": "exact",
+          "method": "map:igb (engine_report)",
+          "sources": [
+            {
+              "locator": "CONTROL DATA:igb",
+              "path": "prod_0001.mdout"
+            }
+          ],
+          "unit": null,
+          "value": false
+        },
+        "minimization": {
+          "confidence": "exact",
+          "method": "stated",
+          "sources": [
+            {
+              "locator": "&cntrl:imin",
+              "path": "prod_0001.mdin"
+            }
+          ],
+          "unit": null,
+          "value": false
+        },
+        "nsteps": {
+          "confidence": "exact",
+          "method": "stated",
+          "sources": [
+            {
+              "locator": "&cntrl:nstlim",
+              "path": "prod_0001.mdin"
+            }
+          ],
+          "unit": null,
+          "value": 5000
+        },
+        "periodic": {
+          "confidence": "exact",
+          "method": "map:ntb (stated)",
+          "sources": [
+            {
+              "locator": "&cntrl:ntb",
+              "path": "prod_0001.mdin"
+            }
+          ],
+          "unit": null,
+          "value": true
+        },
+        "restart": {
+          "confidence": "exact",
+          "method": "map:irest (stated)",
+          "sources": [
+            {
+              "locator": "&cntrl:irest",
+              "path": "prod_0001.mdin"
+            }
+          ],
+          "unit": null,
+          "value": true
+        },
+        "restart_interval_steps": {
+          "confidence": "exact",
+          "method": "engine_report",
+          "sources": [
+            {
+              "locator": "CONTROL DATA:ntwr",
+              "path": "prod_0001.mdout"
+            }
+          ],
+          "unit": null,
+          "value": 5000
+        },
+        "restraints": {
+          "confidence": "derived",
+          "method": "map:ntr (engine_default)",
+          "note": "not stated in the file; engine default applied",
+          "sources": [
+            {
+              "locator": "&cntrl:ntr",
+              "path": "prod_0001.mdin"
+            }
+          ],
+          "unit": null,
+          "value": false
+        },
+        "temp_K": {
+          "confidence": "exact",
+          "method": "stated",
+          "sources": [
+            {
+              "locator": "&cntrl:temp0",
+              "path": "prod_0001.mdin"
+            }
+          ],
+          "unit": "K",
+          "value": 300.0
+        },
+        "temp_initial_K": {
+          "confidence": "exact",
+          "method": "engine_report",
+          "sources": [
+            {
+              "locator": "CONTROL DATA:tempi",
+              "path": "prod_0001.mdout"
+            }
+          ],
+          "unit": "K",
+          "value": 0.0
+        },
+        "temp_ramp": {
+          "confidence": "derived",
+          "method": "&wt TEMP0 value1 != value2",
+          "sources": [
+            {
+              "locator": "CONTROL DATA:nmropt",
+              "path": "prod_0001.mdout"
+            }
+          ],
+          "unit": null,
+          "value": false
+        },
+        "thermostat": {
+          "confidence": "exact",
+          "method": "map:ntt (stated)",
+          "sources": [
+            {
+              "locator": "&cntrl:ntt",
+              "path": "prod_0001.mdin"
+            }
+          ],
+          "unit": null,
+          "value": "langevin"
+        },
+        "traj_interval_steps": {
+          "confidence": "exact",
+          "method": "stated",
+          "sources": [
+            {
+              "locator": "&cntrl:ntwx",
+              "path": "prod_0001.mdin"
+            }
+          ],
+          "unit": null,
+          "value": 500
+        }
+      },
+      "status": "done",
+      "trajectory": {
+        "first_time_ps": {
+          "confidence": "exact",
+          "method": "stated",
+          "sources": [
+            {
+              "locator": "time[0]",
+              "path": "prod_0001.nc"
+            }
+          ],
+          "unit": "ps",
+          "value": 9.0
+        },
+        "format": {
+          "confidence": "exact",
+          "method": "stated",
+          "sources": [
+            {
+              "locator": "content",
+              "path": "prod_0001.nc"
+            }
+          ],
+          "unit": null,
+          "value": "netcdf_traj"
+        },
+        "frame_interval_ps": {
+          "confidence": "exact",
+          "method": "derived:median time delta",
+          "sources": [
+            {
+              "locator": "median(diff(time))",
+              "path": "prod_0001.nc"
+            }
+          ],
+          "unit": "ps",
+          "value": 1.0
+        },
+        "last_time_ps": {
+          "confidence": "exact",
+          "method": "stated",
+          "sources": [
+            {
+              "locator": "time[-1]",
+              "path": "prod_0001.nc"
+            }
+          ],
+          "unit": "ps",
+          "value": 18.0
+        },
+        "n_frames": {
+          "confidence": "exact",
+          "method": "stated",
+          "sources": [
+            {
+              "locator": "dimension frame",
+              "path": "prod_0001.nc"
+            }
+          ],
+          "unit": null,
+          "value": 10
+        },
+        "natom": {
+          "confidence": "exact",
+          "method": "stated",
+          "sources": [
+            {
+              "locator": "dimension atom",
+              "path": "prod_0001.nc"
+            }
+          ],
+          "unit": null,
+          "value": 42
+        },
+        "program": {
+          "confidence": "exact",
+          "method": "stated",
+          "sources": [
+            {
+              "locator": "attribute program",
+              "path": "prod_0001.nc"
+            }
+          ],
+          "unit": null,
+          "value": "pmemd.cuda"
+        },
+        "program_version": {
+          "confidence": "exact",
+          "method": "stated",
+          "sources": [
+            {
+              "locator": "attribute programVersion",
+              "path": "prod_0001.nc"
+            }
+          ],
+          "unit": null,
+          "value": "22.0"
+        }
+      }
+    },
+    {
+      "dir": "",
+      "engine": "amber",
+      "family": "prod",
+      "files": {
+        "control": {
+          "format": "mdin",
+          "kind": "control",
+          "path": "prod_0002.mdin"
+        },
+        "input_coords": {
+          "format": "rst7",
+          "kind": "coords",
+          "path": "prod_0001.rst7"
+        },
+        "log": {
+          "format": "mdout",
+          "kind": "log",
+          "path": "prod_0002.mdout"
+        },
+        "output_restart": {
+          "format": "rst7",
+          "kind": "coords",
+          "path": "prod_0002.rst7"
+        },
+        "topology": {
+          "format": "prmtop",
+          "kind": "topology",
+          "path": "system.prmtop"
+        },
+        "trajectory": {
+          "format": "netcdf_traj",
+          "kind": "trajectory",
+          "path": "prod_0002.nc"
+        }
+      },
+      "id": "prod_0002",
+      "input_coords": {
+        "method": "engine log",
+        "path": "prod_0001.rst7",
+        "ref": "prod_0001",
+        "source": "step"
+      },
+      "name": "prod_0002",
+      "replica": "replica_1",
+      "role": {
+        "confidence": "heuristic",
+        "method": "name token",
+        "sources": [
+          {
+            "locator": "name/content",
+            "path": "prod_0002.mdin"
+          }
+        ],
+        "unit": null,
+        "value": "production"
+      },
+      "runtime": {
+        "completed": {
+          "confidence": "exact",
+          "method": "stated",
+          "sources": [
+            {
+              "locator": "TIMINGS",
+              "path": "prod_0002.mdout"
+            }
+          ],
+          "unit": null,
+          "value": true
+        },
+        "end_time_ps": {
+          "confidence": "derived",
+          "method": "start + nstlim*dt",
+          "sources": [
+            {
+              "locator": "begin time read from input coords",
+              "path": "prod_0002.mdout"
+            },
+            {
+              "locator": "&cntrl:nstlim",
+              "path": "prod_0002.mdin"
+            },
+            {
+              "locator": "&cntrl:dt",
+              "path": "prod_0002.mdin"
+            }
+          ],
+          "unit": "ps",
+          "value": 28.0
+        },
+        "natom": {
+          "confidence": "exact",
+          "method": "stated",
+          "sources": [
+            {
+              "locator": "RESOURCE USE:NATOM",
+              "path": "prod_0002.mdout"
+            }
+          ],
+          "unit": null,
+          "value": 42
+        },
+        "nsteps_completed": {
+          "confidence": "exact",
+          "method": "stated",
+          "sources": [
+            {
+              "locator": "last energy record",
+              "path": "prod_0002.mdout"
+            }
+          ],
+          "unit": null,
+          "value": 5000
+        },
+        "program": {
+          "confidence": "exact",
+          "method": "stated",
+          "sources": [
+            {
+              "locator": "header",
+              "path": "prod_0002.mdout"
+            }
+          ],
+          "unit": null,
+          "value": "PMEMD"
+        },
+        "start_time_ps": {
+          "confidence": "exact",
+          "method": "stated",
+          "sources": [
+            {
+              "locator": "begin time read from input coords",
+              "path": "prod_0002.mdout"
+            }
+          ],
+          "unit": "ps",
+          "value": 18.0
+        },
+        "variant": {
+          "confidence": "exact",
+          "method": "stated",
+          "sources": [
+            {
+              "locator": "Executable path",
+              "path": "prod_0002.mdout"
+            }
+          ],
+          "unit": null,
+          "value": "pmemd.cuda"
+        },
+        "version": {
+          "confidence": "exact",
+          "method": "stated",
+          "sources": [
+            {
+              "locator": "header",
+              "path": "prod_0002.mdout"
+            }
+          ],
+          "unit": null,
+          "value": "22"
+        },
+        "wall_time_s": {
+          "confidence": "exact",
+          "method": "stated",
+          "sources": [
+            {
+              "locator": "Total wall time",
+              "path": "prod_0002.mdout"
+            }
+          ],
+          "unit": "s",
+          "value": 42.0
+        }
+      },
+      "seq_index": 2,
+      "settings": {
+        "barostat": {
+          "confidence": "exact",
+          "method": "map:barostat (stated)",
+          "sources": [
+            {
+              "locator": "&cntrl:barostat",
+              "path": "prod_0002.mdin"
+            }
+          ],
+          "unit": null,
+          "value": "monte-carlo"
+        },
+        "constant_pressure": {
+          "confidence": "derived",
+          "method": "ntp>0 or ntb==2",
+          "sources": [
+            {
+              "locator": "&cntrl:ntp",
+              "path": "prod_0002.mdin"
+            },
+            {
+              "locator": "&cntrl:ntb",
+              "path": "prod_0002.mdin"
+            }
+          ],
+          "unit": null,
+          "value": true
+        },
+        "cutoff_A": {
+          "confidence": "exact",
+          "method": "stated",
+          "sources": [
+            {
+              "locator": "&cntrl:cut",
+              "path": "prod_0002.mdin"
+            }
+          ],
+          "unit": "A",
+          "value": 9.0
+        },
+        "dt_ps": {
+          "confidence": "exact",
+          "method": "stated",
+          "sources": [
+            {
+              "locator": "&cntrl:dt",
+              "path": "prod_0002.mdin"
+            }
+          ],
+          "unit": "ps",
+          "value": 0.002
+        },
+        "ensemble": {
+          "confidence": "derived",
+          "method": "ensemble from ntt/ntb/ntp",
+          "sources": [
+            {
+              "locator": "&cntrl:ntt",
+              "path": "prod_0002.mdin"
+            },
+            {
+              "locator": "&cntrl:ntb",
+              "path": "prod_0002.mdin"
+            },
+            {
+              "locator": "&cntrl:ntp",
+              "path": "prod_0002.mdin"
+            }
+          ],
+          "unit": null,
+          "value": "NPT"
+        },
+        "implicit_solvent": {
+          "confidence": "exact",
+          "method": "map:igb (engine_report)",
+          "sources": [
+            {
+              "locator": "CONTROL DATA:igb",
+              "path": "prod_0002.mdout"
+            }
+          ],
+          "unit": null,
+          "value": false
+        },
+        "minimization": {
+          "confidence": "exact",
+          "method": "stated",
+          "sources": [
+            {
+              "locator": "&cntrl:imin",
+              "path": "prod_0002.mdin"
+            }
+          ],
+          "unit": null,
+          "value": false
+        },
+        "nsteps": {
+          "confidence": "exact",
+          "method": "stated",
+          "sources": [
+            {
+              "locator": "&cntrl:nstlim",
+              "path": "prod_0002.mdin"
+            }
+          ],
+          "unit": null,
+          "value": 5000
+        },
+        "periodic": {
+          "confidence": "exact",
+          "method": "map:ntb (stated)",
+          "sources": [
+            {
+              "locator": "&cntrl:ntb",
+              "path": "prod_0002.mdin"
+            }
+          ],
+          "unit": null,
+          "value": true
+        },
+        "restart": {
+          "confidence": "exact",
+          "method": "map:irest (stated)",
+          "sources": [
+            {
+              "locator": "&cntrl:irest",
+              "path": "prod_0002.mdin"
+            }
+          ],
+          "unit": null,
+          "value": true
+        },
+        "restart_interval_steps": {
+          "confidence": "exact",
+          "method": "engine_report",
+          "sources": [
+            {
+              "locator": "CONTROL DATA:ntwr",
+              "path": "prod_0002.mdout"
+            }
+          ],
+          "unit": null,
+          "value": 5000
+        },
+        "restraints": {
+          "confidence": "derived",
+          "method": "map:ntr (engine_default)",
+          "note": "not stated in the file; engine default applied",
+          "sources": [
+            {
+              "locator": "&cntrl:ntr",
+              "path": "prod_0002.mdin"
+            }
+          ],
+          "unit": null,
+          "value": false
+        },
+        "temp_K": {
+          "confidence": "exact",
+          "method": "stated",
+          "sources": [
+            {
+              "locator": "&cntrl:temp0",
+              "path": "prod_0002.mdin"
+            }
+          ],
+          "unit": "K",
+          "value": 300.0
+        },
+        "temp_initial_K": {
+          "confidence": "exact",
+          "method": "engine_report",
+          "sources": [
+            {
+              "locator": "CONTROL DATA:tempi",
+              "path": "prod_0002.mdout"
+            }
+          ],
+          "unit": "K",
+          "value": 0.0
+        },
+        "temp_ramp": {
+          "confidence": "derived",
+          "method": "&wt TEMP0 value1 != value2",
+          "sources": [
+            {
+              "locator": "CONTROL DATA:nmropt",
+              "path": "prod_0002.mdout"
+            }
+          ],
+          "unit": null,
+          "value": false
+        },
+        "thermostat": {
+          "confidence": "exact",
+          "method": "map:ntt (stated)",
+          "sources": [
+            {
+              "locator": "&cntrl:ntt",
+              "path": "prod_0002.mdin"
+            }
+          ],
+          "unit": null,
+          "value": "langevin"
+        },
+        "traj_interval_steps": {
+          "confidence": "exact",
+          "method": "stated",
+          "sources": [
+            {
+              "locator": "&cntrl:ntwx",
+              "path": "prod_0002.mdin"
+            }
+          ],
+          "unit": null,
+          "value": 500
+        }
+      },
+      "status": "done",
+      "trajectory": {
+        "first_time_ps": {
+          "confidence": "exact",
+          "method": "stated",
+          "sources": [
+            {
+              "locator": "time[0]",
+              "path": "prod_0002.nc"
+            }
+          ],
+          "unit": "ps",
+          "value": 19.0
+        },
+        "format": {
+          "confidence": "exact",
+          "method": "stated",
+          "sources": [
+            {
+              "locator": "content",
+              "path": "prod_0002.nc"
+            }
+          ],
+          "unit": null,
+          "value": "netcdf_traj"
+        },
+        "frame_interval_ps": {
+          "confidence": "exact",
+          "method": "derived:median time delta",
+          "sources": [
+            {
+              "locator": "median(diff(time))",
+              "path": "prod_0002.nc"
+            }
+          ],
+          "unit": "ps",
+          "value": 1.0
+        },
+        "last_time_ps": {
+          "confidence": "exact",
+          "method": "stated",
+          "sources": [
+            {
+              "locator": "time[-1]",
+              "path": "prod_0002.nc"
+            }
+          ],
+          "unit": "ps",
+          "value": 28.0
+        },
+        "n_frames": {
+          "confidence": "exact",
+          "method": "stated",
+          "sources": [
+            {
+              "locator": "dimension frame",
+              "path": "prod_0002.nc"
+            }
+          ],
+          "unit": null,
+          "value": 10
+        },
+        "natom": {
+          "confidence": "exact",
+          "method": "stated",
+          "sources": [
+            {
+              "locator": "dimension atom",
+              "path": "prod_0002.nc"
+            }
+          ],
+          "unit": null,
+          "value": 42
+        },
+        "program": {
+          "confidence": "exact",
+          "method": "stated",
+          "sources": [
+            {
+              "locator": "attribute program",
+              "path": "prod_0002.nc"
+            }
+          ],
+          "unit": null,
+          "value": "pmemd.cuda"
+        },
+        "program_version": {
+          "confidence": "exact",
+          "method": "stated",
+          "sources": [
+            {
+              "locator": "attribute programVersion",
+              "path": "prod_0002.nc"
+            }
+          ],
+          "unit": null,
+          "value": "22.0"
+        }
+      }
+    },
+    {
+      "dir": "",
+      "engine": "amber",
+      "family": "prod",
+      "files": {
+        "control": {
+          "format": "mdin",
+          "kind": "control",
+          "path": "prod_0003.mdin"
+        },
+        "input_coords": {
+          "format": "rst7",
+          "kind": "coords",
+          "path": "prod_0002.rst7"
+        },
+        "log": {
+          "format": "mdout",
+          "kind": "log",
+          "path": "prod_0003.mdout"
+        },
+        "output_restart": {
+          "format": "rst7",
+          "kind": "coords",
+          "path": "prod_0003.rst7"
+        },
+        "topology": {
+          "format": "prmtop",
+          "kind": "topology",
+          "path": "system.prmtop"
+        },
+        "trajectory": {
+          "format": "netcdf_traj",
+          "kind": "trajectory",
+          "path": "prod_0003.nc"
+        }
+      },
+      "id": "prod_0003",
+      "input_coords": {
+        "method": "engine log",
+        "path": "prod_0002.rst7",
+        "ref": "prod_0002",
+        "source": "step"
+      },
+      "name": "prod_0003",
+      "replica": "replica_1",
+      "role": {
+        "confidence": "heuristic",
+        "method": "name token",
+        "sources": [
+          {
+            "locator": "name/content",
+            "path": "prod_0003.mdin"
+          }
+        ],
+        "unit": null,
+        "value": "production"
+      },
+      "runtime": {
+        "completed": {
+          "confidence": "exact",
+          "method": "stated",
+          "sources": [
+            {
+              "locator": "TIMINGS",
+              "path": "prod_0003.mdout"
+            }
+          ],
+          "unit": null,
+          "value": true
+        },
+        "end_time_ps": {
+          "confidence": "derived",
+          "method": "start + nstlim*dt",
+          "sources": [
+            {
+              "locator": "begin time read from input coords",
+              "path": "prod_0003.mdout"
+            },
+            {
+              "locator": "&cntrl:nstlim",
+              "path": "prod_0003.mdin"
+            },
+            {
+              "locator": "&cntrl:dt",
+              "path": "prod_0003.mdin"
+            }
+          ],
+          "unit": "ps",
+          "value": 38.0
+        },
+        "natom": {
+          "confidence": "exact",
+          "method": "stated",
+          "sources": [
+            {
+              "locator": "RESOURCE USE:NATOM",
+              "path": "prod_0003.mdout"
+            }
+          ],
+          "unit": null,
+          "value": 42
+        },
+        "nsteps_completed": {
+          "confidence": "exact",
+          "method": "stated",
+          "sources": [
+            {
+              "locator": "last energy record",
+              "path": "prod_0003.mdout"
+            }
+          ],
+          "unit": null,
+          "value": 5000
+        },
+        "program": {
+          "confidence": "exact",
+          "method": "stated",
+          "sources": [
+            {
+              "locator": "header",
+              "path": "prod_0003.mdout"
+            }
+          ],
+          "unit": null,
+          "value": "PMEMD"
+        },
+        "start_time_ps": {
+          "confidence": "exact",
+          "method": "stated",
+          "sources": [
+            {
+              "locator": "begin time read from input coords",
+              "path": "prod_0003.mdout"
+            }
+          ],
+          "unit": "ps",
+          "value": 28.0
+        },
+        "variant": {
+          "confidence": "exact",
+          "method": "stated",
+          "sources": [
+            {
+              "locator": "Executable path",
+              "path": "prod_0003.mdout"
+            }
+          ],
+          "unit": null,
+          "value": "pmemd.cuda"
+        },
+        "version": {
+          "confidence": "exact",
+          "method": "stated",
+          "sources": [
+            {
+              "locator": "header",
+              "path": "prod_0003.mdout"
+            }
+          ],
+          "unit": null,
+          "value": "22"
+        },
+        "wall_time_s": {
+          "confidence": "exact",
+          "method": "stated",
+          "sources": [
+            {
+              "locator": "Total wall time",
+              "path": "prod_0003.mdout"
+            }
+          ],
+          "unit": "s",
+          "value": 42.0
+        }
+      },
+      "seq_index": 3,
+      "settings": {
+        "barostat": {
+          "confidence": "exact",
+          "method": "map:barostat (stated)",
+          "sources": [
+            {
+              "locator": "&cntrl:barostat",
+              "path": "prod_0003.mdin"
+            }
+          ],
+          "unit": null,
+          "value": "monte-carlo"
+        },
+        "constant_pressure": {
+          "confidence": "derived",
+          "method": "ntp>0 or ntb==2",
+          "sources": [
+            {
+              "locator": "&cntrl:ntp",
+              "path": "prod_0003.mdin"
+            },
+            {
+              "locator": "&cntrl:ntb",
+              "path": "prod_0003.mdin"
+            }
+          ],
+          "unit": null,
+          "value": true
+        },
+        "cutoff_A": {
+          "confidence": "exact",
+          "method": "stated",
+          "sources": [
+            {
+              "locator": "&cntrl:cut",
+              "path": "prod_0003.mdin"
+            }
+          ],
+          "unit": "A",
+          "value": 9.0
+        },
+        "dt_ps": {
+          "confidence": "exact",
+          "method": "stated",
+          "sources": [
+            {
+              "locator": "&cntrl:dt",
+              "path": "prod_0003.mdin"
+            }
+          ],
+          "unit": "ps",
+          "value": 0.002
+        },
+        "ensemble": {
+          "confidence": "derived",
+          "method": "ensemble from ntt/ntb/ntp",
+          "sources": [
+            {
+              "locator": "&cntrl:ntt",
+              "path": "prod_0003.mdin"
+            },
+            {
+              "locator": "&cntrl:ntb",
+              "path": "prod_0003.mdin"
+            },
+            {
+              "locator": "&cntrl:ntp",
+              "path": "prod_0003.mdin"
+            }
+          ],
+          "unit": null,
+          "value": "NPT"
+        },
+        "implicit_solvent": {
+          "confidence": "exact",
+          "method": "map:igb (engine_report)",
+          "sources": [
+            {
+              "locator": "CONTROL DATA:igb",
+              "path": "prod_0003.mdout"
+            }
+          ],
+          "unit": null,
+          "value": false
+        },
+        "minimization": {
+          "confidence": "exact",
+          "method": "stated",
+          "sources": [
+            {
+              "locator": "&cntrl:imin",
+              "path": "prod_0003.mdin"
+            }
+          ],
+          "unit": null,
+          "value": false
+        },
+        "nsteps": {
+          "confidence": "exact",
+          "method": "stated",
+          "sources": [
+            {
+              "locator": "&cntrl:nstlim",
+              "path": "prod_0003.mdin"
+            }
+          ],
+          "unit": null,
+          "value": 5000
+        },
+        "periodic": {
+          "confidence": "exact",
+          "method": "map:ntb (stated)",
+          "sources": [
+            {
+              "locator": "&cntrl:ntb",
+              "path": "prod_0003.mdin"
+            }
+          ],
+          "unit": null,
+          "value": true
+        },
+        "restart": {
+          "confidence": "exact",
+          "method": "map:irest (stated)",
+          "sources": [
+            {
+              "locator": "&cntrl:irest",
+              "path": "prod_0003.mdin"
+            }
+          ],
+          "unit": null,
+          "value": true
+        },
+        "restart_interval_steps": {
+          "confidence": "exact",
+          "method": "engine_report",
+          "sources": [
+            {
+              "locator": "CONTROL DATA:ntwr",
+              "path": "prod_0003.mdout"
+            }
+          ],
+          "unit": null,
+          "value": 5000
+        },
+        "restraints": {
+          "confidence": "derived",
+          "method": "map:ntr (engine_default)",
+          "note": "not stated in the file; engine default applied",
+          "sources": [
+            {
+              "locator": "&cntrl:ntr",
+              "path": "prod_0003.mdin"
+            }
+          ],
+          "unit": null,
+          "value": false
+        },
+        "temp_K": {
+          "confidence": "exact",
+          "method": "stated",
+          "sources": [
+            {
+              "locator": "&cntrl:temp0",
+              "path": "prod_0003.mdin"
+            }
+          ],
+          "unit": "K",
+          "value": 300.0
+        },
+        "temp_initial_K": {
+          "confidence": "exact",
+          "method": "engine_report",
+          "sources": [
+            {
+              "locator": "CONTROL DATA:tempi",
+              "path": "prod_0003.mdout"
+            }
+          ],
+          "unit": "K",
+          "value": 0.0
+        },
+        "temp_ramp": {
+          "confidence": "derived",
+          "method": "&wt TEMP0 value1 != value2",
+          "sources": [
+            {
+              "locator": "CONTROL DATA:nmropt",
+              "path": "prod_0003.mdout"
+            }
+          ],
+          "unit": null,
+          "value": false
+        },
+        "thermostat": {
+          "confidence": "exact",
+          "method": "map:ntt (stated)",
+          "sources": [
+            {
+              "locator": "&cntrl:ntt",
+              "path": "prod_0003.mdin"
+            }
+          ],
+          "unit": null,
+          "value": "langevin"
+        },
+        "traj_interval_steps": {
+          "confidence": "exact",
+          "method": "stated",
+          "sources": [
+            {
+              "locator": "&cntrl:ntwx",
+              "path": "prod_0003.mdin"
+            }
+          ],
+          "unit": null,
+          "value": 500
+        }
+      },
+      "status": "done",
+      "trajectory": {
+        "first_time_ps": {
+          "confidence": "exact",
+          "method": "stated",
+          "sources": [
+            {
+              "locator": "time[0]",
+              "path": "prod_0003.nc"
+            }
+          ],
+          "unit": "ps",
+          "value": 29.0
+        },
+        "format": {
+          "confidence": "exact",
+          "method": "stated",
+          "sources": [
+            {
+              "locator": "content",
+              "path": "prod_0003.nc"
+            }
+          ],
+          "unit": null,
+          "value": "netcdf_traj"
+        },
+        "frame_interval_ps": {
+          "confidence": "exact",
+          "method": "derived:median time delta",
+          "sources": [
+            {
+              "locator": "median(diff(time))",
+              "path": "prod_0003.nc"
+            }
+          ],
+          "unit": "ps",
+          "value": 1.0
+        },
+        "last_time_ps": {
+          "confidence": "exact",
+          "method": "stated",
+          "sources": [
+            {
+              "locator": "time[-1]",
+              "path": "prod_0003.nc"
+            }
+          ],
+          "unit": "ps",
+          "value": 38.0
+        },
+        "n_frames": {
+          "confidence": "exact",
+          "method": "stated",
+          "sources": [
+            {
+              "locator": "dimension frame",
+              "path": "prod_0003.nc"
+            }
+          ],
+          "unit": null,
+          "value": 10
+        },
+        "natom": {
+          "confidence": "exact",
+          "method": "stated",
+          "sources": [
+            {
+              "locator": "dimension atom",
+              "path": "prod_0003.nc"
+            }
+          ],
+          "unit": null,
+          "value": 42
+        },
+        "program": {
+          "confidence": "exact",
+          "method": "stated",
+          "sources": [
+            {
+              "locator": "attribute program",
+              "path": "prod_0003.nc"
+            }
+          ],
+          "unit": null,
+          "value": "pmemd.cuda"
+        },
+        "program_version": {
+          "confidence": "exact",
+          "method": "stated",
+          "sources": [
+            {
+              "locator": "attribute programVersion",
+              "path": "prod_0003.nc"
+            }
+          ],
+          "unit": null,
+          "value": "22.0"
+        }
+      }
+    }
+  ],
+  "system": {
+    "box_angles": [
+      90.0,
+      90.0,
+      90.0
+    ],
+    "box_lengths": [
+      40.0,
+      40.0,
+      40.0
+    ],
+    "n_extra_points": 0,
+    "natom": 42,
+    "nres": 10,
+    "periodic_box_type": 1,
+    "residue_counts": {
+      "ALA": 1,
+      "GLY": 1,
+      "LEU": 1,
+      "SER": 1,
+      "WAT": 6
+    },
+    "source": "system.prmtop",
+    "title": "synthetic"
+  },
+  "topologies": [
+    {
+      "format": "prmtop",
+      "kind": "topology",
+      "path": "system.prmtop"
+    }
+  ]
+}

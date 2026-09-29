@@ -1,0 +1,24 @@
+# Production with Tcl variables
+source ../common.inc
+set inputname      ../prep/eq
+set outputname     prod
+set temperature    300
+bincoordinates     $inputname.coor
+binvelocities      $inputname.vel
+extendedSystem     $inputname.xsc
+rigidBonds         all
+timestep           2.0
+langevin           on
+langevinDamping    1.0
+langevinTemp       $temperature
+useGroupPressure   yes
+langevinPiston        on
+langevinPistonTarget  1.01325
+langevinPistonPeriod  100.0
+langevinPistonDecay   50.0
+langevinPistonTemp    $temperature
+outputName         $outputname
+restartfreq        250
+dcdfreq            250
+outputEnergies     250
+run                2500

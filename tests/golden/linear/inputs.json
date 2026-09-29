@@ -1,0 +1,23 @@
+{
+  "boxtype": "Cubic",
+  "ensemble": "NPT",
+  "framestep": 0.001,
+  "input_topology_filepath": "system.prmtop",
+  "mdref": 0,
+  "mds": [
+    {
+      "input_trajectory_filepaths": [
+        "prod_0001.nc",
+        "prod_0002.nc",
+        "prod_0003.nc"
+      ],
+      "mdir": "replica_1",
+      "name": "replica_1"
+    }
+  ],
+  "program": "AMBER",
+  "temp": 300.0,
+  "timestep": 2.0,
+  "type": "trajectory",
+  "version": "22"
+}

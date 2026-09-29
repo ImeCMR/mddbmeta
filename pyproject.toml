@@ -1,0 +1,56 @@
+[build-system]
+requires = ["hatchling>=1.18"]
+build-backend = "hatchling.build"
+
+[project]
+name = "mddbmeta"
+version = "0.1.0.dev0"
+description = "Provenance engine that mines MDDB inputs metadata from raw molecular-dynamics run files."
+readme = "README.md"
+license = "Apache-2.0"
+requires-python = ">=3.10"
+keywords = ["molecular-dynamics", "provenance", "metadata", "mddb", "amber"]
+classifiers = [
+    "Development Status :: 2 - Pre-Alpha",
+    "Intended Audience :: Science/Research",
+    "Programming Language :: Python :: 3",
+    "Topic :: Scientific/Engineering :: Chemistry",
+]
+dependencies = []
+
+[project.optional-dependencies]
+yaml = ["PyYAML>=6"]
+netcdf = ["netCDF4>=1.6"]
+dev = ["pytest>=7", "pytest-cov", "ruff", "mypy", "jinja2", "PyYAML>=6", "pydantic>=2", "scipy"]
+all = ["PyYAML>=6", "netCDF4>=1.6"]
+
+[project.scripts]
+mddbmeta = "mddbmeta.cli.main:main"
+
+[project.entry-points."mddbmeta.engines"]
+amber = "mddbmeta.engines.amber:AmberAdapter"
+gromacs = "mddbmeta.engines.gromacs:GromacsAdapter"
+namd = "mddbmeta.engines.namd:NamdAdapter"
+openmm = "mddbmeta.engines.openmm:OpenmmAdapter"
+meld = "mddbmeta.engines.meld:MeldAdapter"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/mddbmeta"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-ra"
+markers = [
+    "netcdf: needs a NetCDF backend (netCDF4 or scipy)",
+    "mwf: needs an importable mddb_workflow installation",
+    "external_data: needs MDDBMETA_EXTERNAL_DATA pointing at real run data",
+]
+
+[tool.ruff]
+line-length = 100
+src = ["src", "tests"]
+extend-exclude = ["tests/data"]  # genuine run inputs: keep them byte-identical
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "B", "UP"]
+ignore = ["E501"]  # the formatter wraps code; long message strings are fine
