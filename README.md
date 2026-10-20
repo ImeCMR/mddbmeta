@@ -1,8 +1,5 @@
 <p align="center">
-  <picture>
-    <source media="(prefers-color-scheme: dark)" srcset="assets/logo/logo_black.png">
-    <img src="assets/logo/logo_transparent.png" alt="mddbmeta" width="420">
-  </picture>
+  <img src="assets/logo/logo_transparent.png" alt="mddbmeta" width="420">
 </p>
 
 # mddbmeta
