@@ -1,3 +1,10 @@
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="assets/logo/logo_black.png">
+    <img src="assets/logo/logo_transparent.png" alt="mddbmeta" width="420">
+  </picture>
+</p>
+
 # mddbmeta
 
 **mddbmeta reads the files an MD project already produced and writes the MDDB-workflow `inputs.yaml` you would otherwise type by hand, with a record of where every value came from.**
