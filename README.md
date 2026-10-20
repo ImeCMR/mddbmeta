@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="assets/logo/logo_transparent.png" alt="mddbmeta" width="420">
+  <img src="assets/logo/logo_transparent_white_letters.png" alt="mddbmeta" width="420">
 </p>
 
 # mddbmeta
