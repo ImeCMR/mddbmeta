@@ -16,7 +16,7 @@ mddbmeta:
 - reports gaps, overlaps, missing chunks, crashed runs, frame-count and atom-count mismatches as findings with stable codes;
 - writes an `inputs.yaml` that passes MDDB-workflow's schema, plus a provenance sidecar; it can also fill or reconcile an existing inputs file.
 
-Status: **M0, M1, M3, M4, M5**. Engine adapters:
+Supported engines:
 
 - **AMBER** (sander / pmemd);
 - **GROMACS** (gmx mdrun);
@@ -24,17 +24,25 @@ Status: **M0, M1, M3, M4, M5**. Engine adapters:
 - **OpenMM** (Python run scripts, read statically);
 - **MELD** (replica exchange on OpenMM).
 
-Every file is read with the stdlib, and no engine needs to be installed. mddbmeta never executes an OpenMM script.
+No MD engine needs to be installed. mddbmeta only reads files: it never executes a run script and never unpickles anything.
 
-- Python ≥ 3.10, no required dependencies (extras: `yaml`, `netcdf`, the latter for AMBER NetCDF only)
+- Python ≥ 3.10, no required dependencies (extras: `yaml`; `netcdf` for AMBER NetCDF files and MELD data stores)
 - License: Apache-2.0 (see `LICENSE`)
 
 ## Install
 
+On HiPerGator:
+
 ```bash
-python -m pip install -e ".[yaml,netcdf]"      # netcdf: netCDF4; scipy also works as a backend
-python -m pip install -e ".[dev]"              # tests, lint
+module load python/3.11
+git clone https://github.com/ImeCMR/mddbmeta.git
+cd mddbmeta
+python -m venv .venv
+.venv/bin/pip install -e ".[yaml,netcdf]"
+.venv/bin/mddbmeta --version
 ```
+
+Elsewhere, `python -m pip install -e ".[yaml,netcdf]"` in any Python ≥ 3.10 environment. scipy also works as the NetCDF backend for AMBER files, but MELD data stores need netCDF4.
 
 ## Quickstart
 
@@ -64,6 +72,37 @@ MDDB fields:
   wat         TIP3P          derived   build log                  tleap.in:leaprc water
   ff          Amber ff14SB   derived   build log (linked to topology)
 ```
+
+### What you still write by hand
+
+mddbmeta fills the simulation fields:
+
+- `program`, `version`, `type`, `framestep`, `timestep`, `temp`, `ensemble`, `ff`, `wat`, `boxtype`;
+- `input_topology_filepath` / `input_structure_filepath`;
+- `mds[]`, `mdref`;
+- for MELD, also `method` and `metadditions`.
+
+Project metadata is not in any run file, so add it to `inputs.yaml` yourself:
+
+| Field | Required? | Notes |
+|---|---|---|
+| `name`, `description` | yes | shown on the MDDB overview page |
+| `authors`, `groups`, `contact` | yes | check existing MDDB spellings to avoid duplicates |
+| `citation` | recommended | `(br)` for a line break |
+| `pdb_ids` | recommended | e.g. `[1KH0]`; MDDB-workflow pulls extra data from the PDB |
+| `method` | for non-MELD runs | e.g. `Classical MD` |
+| `license` / `linkcense` | optional | defaults to CC-BY 4.0 |
+| `forced_references` | optional | UniProt IDs; `noref` for synthetic or mutant chains |
+| `ligands`, `interactions`, `chainnames`, ... | optional | analysis and display settings; see `mwf inputs` |
+
+**Tip:** keep the fields that are the same for every project (`authors`, `groups`, `contact`, `license`) in one `lab.yaml`. Then let mddbmeta fill in the rest:
+
+```bash
+cp lab.yaml runs/inputs.yaml
+mddbmeta export runs/ --fill runs/inputs.yaml --in-place --add-mds
+```
+
+Don't edit mined values in `inputs.yaml` directly. Use `overrides:` (below) so the provenance stays correct, then check with `mddbmeta reconcile runs/inputs.yaml`.
 
 ### Working with an existing inputs file
 
@@ -214,9 +253,11 @@ A MELD run is one replica-exchange simulation. After the run, `extract_trajector
 - **Never unpickled:** `Data/*.dat` files are pickles and are never opened.
 - **`metadditions.meld`** records the replica count, exchanges, MD steps and interval per exchange, the ladder, the adaptor, the Grappa model and the solvent model.
 
+**About temperatures:** each MD's `temp` is the temperature of its ladder position at the end of the run. If an adaptor such as `EqualAcceptanceAdaptor` moved the ladder, this differs from the initial ladder in your setup script. `MELD001` tells you when that happened, and the sidecar JSON holds each position's full temperature range. Positions above the scaler's `alpha_max` share its top temperature and differ only in restraint strength.
+
 **Reading the data store**
 - It needs the `netcdf` extra (netCDF4), because MELD blocks are HDF5.
-- It is the slow part, reading one small variable per block: about a minute for 400 blocks on /orange.
+- It is the slow part, reading one small variable per block: about 2–3 minutes for 400 blocks on /orange.
 
 ### How MDDB-workflow merges the parts (`MRG001`, `ORDER002`)
 
@@ -236,77 +277,32 @@ The full code list with severities is in [`docs/findings.md`](docs/findings.md).
 - **Consistency:** production runs disagreeing on dt, ntwx, temp0 or ensemble (`CONS001`); atom counts disagreeing across topology, log, coordinates and trajectory (`CONS004`).
 - **Schema:** exports are checked against a stdlib mirror of MDDB-workflow's inputs schema (`SCH001`). The test suite also validates them against MDDB-workflow's real pydantic schema source.
 
-## Architecture
+## Known limitations
 
-```
-src/mddbmeta/
-  provenance.py   Mined(value, unit, sources, method, confidence), Finding, FileLoadError
-  findings.py     stable finding codes (catalogue)
-  model.py        Project / Replica / Phase / Step, StepSettings / StepRuntime / TrajectoryInfo
-  engines/
-    base.py       EngineAdapter: sniff, parse, build_steps, system_info, coords_natom_time, ...
-    registry.py   built-ins + the `mddbmeta.engines` entry-point group
-    amber/        prmtop, mdin (namelists), mdout, rst7/mdcrd, NetCDF, tleap logs, semantics
-    gromacs/      mdp, mdrun log (sessions), gro/top, xtc/trr/tpr/cpt (stdlib XDR), semantics
-    namd/         config (set/$var/source), log (Info/TCL/ENERGY), dcd/coor/xsc/psf/pdb, semantics
-    openmm/       run-script static analysis (ast), StateDataReporter logs, XmlSerializer files
-    meld/         setup-script analysis, remd logs, data-store alphas, extract_trajectory scripts
-  discovery/      scan (content sniffing), roles, replicas, lineage (input coords → chains)
-  validate/       continuity, completeness, consistency, schema_lite
-  mining/         fields (MDDB rules), water, boxtype, forcefield
-  export/         mddb (inputs + sidecar), reconcile (fill/compare), manifest (project.yaml)
-  integrations/   mwf_generator.py + Jinja template for `mwf dataset inputs`
-  cli/            argparse front end and text rendering
-  pipeline.py     discover(): scan → steps → roles → replicas → lineage → validate → mine
-```
+- **OpenMM:**
+  - scripts are read without running them, so file names built at run time (beyond f-strings, `+` and `os.path.join`) and branching logic are resolved heuristically;
+  - a run without a StateDataReporter log produces no step;
+  - CHARMM-GUI's `openmm_run.py` + `.inp` layout is not handled specially.
+- **MELD:** `temp` is the final ladder temperature (see above). Restraint strength (alpha) is not written per MD.
+- **NAMD:** replica-exchange (`+replicas`) and multi-copy runs are not modelled. Configs that loop over `run` inside Tcl blocks rely on the log for their totals.
+- **GROMACS:**
+  - only the tpr header is read, so a run with no log contributes a topology but no settings;
+  - `-multidir` runs are read as independent directories.
+- **AMBER:**
+  - REMD / groupfile inputs (several `&cntrl`) are reported (`ENG002`), not modelled;
+  - force fields are only known when a tleap script or log is present.
+- **ASCII mdcrd:** frame counts need the atom count, taken from the log or topology.
+- **Analysis output:** files left in the project folder can be mistaken for run files, e.g. cpptraj cluster trajectories reported as AMBER files (`ENG001`). Exclude them with `--exclude`, or ignore the warning if the mined values look right.
 
-Design rules:
+## Testing it and reporting problems
 
-- Discovery, validation, mining and export are **engine-neutral**. Only `engines/<name>/` knows file formats.
-- Parsers never raise: failures become `FileLoadError`s and `LOAD001` findings.
-- Every inference is announced as a finding.
-- Paths on the model are POSIX, relative to the project root. The root is resolved to an absolute path on entry.
+1. Run `mddbmeta discover <dir> -v` on one of your own projects and check every mined value against what you know you ran.
+2. Run `mddbmeta export <dir> --mddb <dir>/inputs.yaml`, add the hand-written fields, and run `mddbmeta reconcile <dir>/inputs.yaml`.
+3. If something is wrong or missing, open an issue on the GitHub repository. Include:
+   - the engine and how the run was set up;
+   - the `discover -v` output;
+   - the field that is wrong, and what it should be.
 
-### Adding an engine
+   Please don't attach large trajectories.
 
-1. Implement `EngineAdapter` in `engines/<engine>/`. `sniff` classifies files by content. `parse` never raises. `build_steps` groups files into `Step`s and fills `settings`, `runtime`, `trajectory` and the `FileRole.INPUT_COORDS` / `OUTPUT_RESTART` files; lineage and everything downstream is derived from those.
-2. Register it under the `mddbmeta.engines` entry point, or in `engines/registry.py`.
-3. Add a synthetic-file writer and scenarios under `tests/`.
-
-## Development
-
-```bash
-module load python/3.11                      # on HiPerGator
-python -m venv .venv && .venv/bin/pip install -e ".[dev,yaml,netcdf]"
-.venv/bin/pytest                             # synthetic fixtures; no third-party data vendored
-.venv/bin/pytest --update-golden             # after an intended output change
-MDDBMETA_EXTERNAL_DATA=/path/to/runs .venv/bin/pytest -m external_data
-.venv/bin/ruff check src tests && .venv/bin/ruff format --check src tests
-```
-
-The AMBER tests generate valid synthetic files (`tests/amberfiles.py`).
-
-The GROMACS tests use `tests/data/gromacs_real/`: genuine GROMACS 2022.3 output, reproducible with its `build.sh`.
-
-The OpenMM tests use `tests/data/openmm_real/` (OpenMM 8.6.1: a Modeller-built system, a looped segment script and a checkpoint restart) and `tests/data/openmm_amber/` (a prmtop run logging to stdout).
-
-Fixture inputs under `tests/data/` are excluded from ruff so they stay byte-identical to what ran.
-
-The NAMD tests use `tests/data/namd_real/` (NAMD 2.14b1, CHARMM36, built with VMD psfgen) and `tests/data/namd_amber/` (an `amber on` run). Their READMEs describe how each was made. They also read MDDB-workflow's own `test/data/input` files when present.
-
-After changing finding codes, run `python scripts/gen_findings_doc.py`.
-
-## Known limitations (M1)
-
-- Engines: AMBER, GROMACS, NAMD and OpenMM.
-- OpenMM:
-  - scripts are read statically: file names computed at run time (other than f-strings, `+` and `os.path.join` of known values), helper functions, and control flow that decides which of several loads runs are resolved heuristically;
-  - runs without a StateDataReporter log produce no step;
-  - CHARMM-GUI's `openmm_run.py` + `.inp` layout is not specially handled yet.
-- MELD: MD `temp` is the final ladder temperature; replicas at α ≥ `alpha_max` share `t_max` and differ only in restraint strength, which the per-MD metadata does not yet express.
-- NAMD: replica-exchange (`+replicas`) and multi-copy runs are not modelled. Configs that loop over `run` inside Tcl blocks rely on the log for their totals.
-- GROMACS: the tpr body is not parsed (only the header: version and atom count), so a run with no log contributes a topology but no settings. Multi-simulation (`-multidir`) runs are read as independent directories.
-- AMBER: REMD / groupfile inputs (several `&cntrl`) are detected and reported (`ENG002`), not modelled.
-- ASCII mdcrd frame counts need the atom count, taken from the log or topology.
-- Force fields are only known when a tleap script or log is present; AMBER run files don't record them.
-- The `boxtype` labels (`Cubic`, `Rectangular`, `Truncated Octahedron`, `Triclinic`) should be aligned with the vocabulary already in the MDDB (see `mining/boxtype.py`).
+Contributors: see [`docs/development.md`](docs/development.md).
