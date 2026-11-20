@@ -103,6 +103,11 @@ class EngineAdapter(ABC):
     def build_evidence(self, build_log: ParsedFile) -> BuildEvidence | None:
         return None
 
+    def prepare(self, root: Path, max_depth: int, exclude: list[str]) -> list[Finding]:
+        """Write derived files the scan should see, before it runs (e.g. MELD: a prmtop from
+        Data/system.dat). Called only when discovery may write; returns findings."""
+        return []
+
     def declare_replicas(self, steps: list) -> dict[str, str | None] | None:
         """step id -> replica id, when the engine itself defines the replicas (e.g. REMD ladders)."""
         return None

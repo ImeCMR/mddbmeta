@@ -74,6 +74,8 @@ CATALOG: dict[str, Code] = {
         ),
         Code("MELD003", S.INFO, "Walker trajectories recorded but not exported"),
         Code("MELD004", S.INFO, "The replica-exchange run was restarted"),
+        Code("MELD005", S.INFO, "Topology written from the MELD system (Data/system.dat)"),
+        Code("MELD006", S.WARNING, "No topology could be written from Data/system.dat"),
         # Formats / schema / loading / engines
         Code("FMT001", S.ERROR, "Trajectory parts of one MD have different formats"),
         Code("FMT002", S.WARNING, "File format not supported by MDDB-workflow"),

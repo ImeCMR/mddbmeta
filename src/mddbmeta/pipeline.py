@@ -31,6 +31,7 @@ def discover(
     max_depth: int = 4,
     exclude: list[str] | None = None,
     overrides: dict[str, Any] | None = None,
+    write_topology: bool = True,
 ) -> Project:
     root = Path(root).expanduser().resolve()
     roles, chains, field_overrides = split_overrides(overrides or {})
@@ -39,8 +40,13 @@ def discover(
     adapters: list[EngineAdapter] = (
         [get_adapter(engine)] if engine else [cls() for cls in available_adapters().values()]
     )
+    prepared: list = []
+    if write_topology:  # e.g. MELD: a prmtop from Data/system.dat, so the scan sees it
+        for a in adapters:
+            prepared.extend(a.prepare(root, max_depth, list(exclude or [])))
     scanned, owner = scan(root, adapters, max_depth=max_depth, exclude=exclude)
     project = Project(root=str(root))
+    project.findings.extend(prepared)
     project.findings.extend(scanned.findings)
     project.load_errors.extend(scanned.load_errors)
     if not scanned.files:
@@ -150,7 +156,9 @@ def load_project(target: str | Path, **options: Any) -> Project:
         raise MddbmetaError(f"{path} does not exist")
     root, disc, overrides = read_manifest(path)
     opts = {
-        k: v for k, v in disc.items() if k in ("engine", "replica_glob", "max_depth", "exclude")
+        k: v
+        for k, v in disc.items()
+        if k in ("engine", "replica_glob", "max_depth", "exclude", "write_topology")
     }
     opts.update(options)
     return discover(root, overrides=overrides, **opts)

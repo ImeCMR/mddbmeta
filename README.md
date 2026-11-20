@@ -44,7 +44,7 @@ python -m venv .venv
 
 Elsewhere, `python -m pip install -e ".[yaml,netcdf]"` in any Python ≥ 3.10 environment. scipy also works as the NetCDF backend for AMBER files, but MELD data stores need netCDF4.
 
-OpenMM and ParmEd are installed with it, from pip. They are used only to write a prmtop for MELD runs (`mddbmeta meld-prmtop`, below); mddbmeta never runs a simulation.
+OpenMM and ParmEd are installed with it, from pip. They are used only to write the topology of MELD runs (below); mddbmeta never runs a simulation.
 
 ## Quickstart
 
@@ -252,7 +252,7 @@ A MELD run is one replica-exchange simulation. After the run, `extract_trajector
 - **The data store's `alphas`** in `Data/Blocks/block_*.nc`, which records every ladder position's alpha at every frame. Each MD's `temp` is its final alpha put through the scaler.
   - If an adaptor moved the ladder, `MELD001` lists the positions whose temperature changed and the frame where it settled.
   - Extracted and stored frame counts are compared (`MELD002`).
-- **Pickles:** discovery never opens `Data/*.dat`; only `mddbmeta meld-prmtop` reads `Data/system.dat`, and without running any code from it (below).
+- **Pickles:** of `Data/*.dat`, only `system.dat` is read, to write the topology (below), and no code from it is run.
 - **`metadditions.meld`** records the replica count, exchanges, MD steps and interval per exchange, the ladder, the adaptor, the Grappa model and the solvent model.
 
 **About temperatures:** each MD's `temp` is the temperature of its ladder position at the end of the run. If an adaptor such as `EqualAcceptanceAdaptor` moved the ladder, this differs from the initial ladder in your setup script. `MELD001` tells you when that happened, and the sidecar JSON holds each position's full temperature range. Positions above the scaler's `alpha_max` share its top temperature and differ only in restraint strength.
@@ -261,21 +261,23 @@ A MELD run is one replica-exchange simulation. After the run, `extract_trajector
 - It needs the `netcdf` extra (netCDF4), because MELD blocks are HDF5.
 - It is the slow part, reading one small variable per block: about 2–3 minutes for 400 blocks on /orange.
 
-### A topology for MDDB-workflow (`mddbmeta meld-prmtop`)
+### The topology: written from `Data/system.dat`
 
-MDDB-workflow needs a topology file (prmtop, psf, top or tpr). MELD keeps the exact simulated system in `Data/system.dat`, so mddbmeta can write the prmtop from it:
+MDDB-workflow needs a topology file (prmtop, psf, top or tpr), and MELD keeps none: it builds the system in memory and saves it only inside `Data/system.dat`. So before it scans a MELD run, mddbmeta writes **`meld_system.prmtop`** next to `Data/` from that file, and uses it as the run's topology (`input_topology_filepath`). Any other prmtop in the folder (e.g. one made with tleap before the run) is not used; `MELD005` names it.
+
+- **Exact force field:** it holds the parameters MELD actually ran, including Grappa's bonded terms. A prmtop from tleap holds ff14SB's instead. Atom order is MELD's own, so it always matches the DCDs.
+- **Checked:** the bond, angle, torsion and nonbonded energies of the prmtop must match MELD's system at the saved coordinates, or nothing is written (`MELD006`, and discovery carries on with the files it finds).
+- **Written once:** later runs reuse it while it is newer than `system.dat`. mddbmeta never overwrites a `meld_system.prmtop` it did not write.
+- **Implicit solvent:** the GB model (e.g. gbn2) is a run setting, not part of a prmtop, and the per-atom GB radii are not filled in yet. This does not matter to MDDB-workflow; do not re-run a GB simulation from this prmtop.
+- **No MELD needed, no code run:** `system.dat` is a pickle, and loading a pickle normally runs the code it names. mddbmeta reads it with a loader that imports nothing: every class becomes an empty placeholder holding the saved values. OpenMM rebuilds the system from the force-field XML stored inside, and ParmEd writes the prmtop.
+- **Read-only discovery:** pass `--no-meld-prmtop` to write nothing; `MINE004` then suggests the command below.
+
+To write it by hand, or somewhere else:
 
 ```bash
-mddbmeta meld-prmtop runs/my_meld_run          # writes runs/my_meld_run/topology.prmtop
-mddbmeta export runs/my_meld_run --mddb runs/my_meld_run/inputs.yaml
+mddbmeta meld-prmtop runs/my_meld_run                  # runs/my_meld_run/meld_system.prmtop, prints the energy check
+mddbmeta meld-prmtop runs/my_meld_run -o /tmp/x.prmtop # anywhere; --force to overwrite
 ```
-
-- **Exact force field:** it holds the parameters MELD actually ran, including Grappa's bonded terms. A prmtop from tleap would hold ff14SB's instead. Atom order is MELD's own, so it always matches the DCDs.
-- **Checked:** the bond, angle, torsion and nonbonded energies of the prmtop must match MELD's system at the saved coordinates, or nothing is written. The command prints both sets of energies.
-- **Implicit solvent is not in it:** a prmtop has no place for MELD's GB model (e.g. gbn2), so it is left out. That does not matter to MDDB-workflow; add it back if you re-run a simulation from this prmtop.
-- **No MELD needed, no code run:** `system.dat` is a pickle, and loading a pickle normally runs the code it names. mddbmeta reads it with a loader that imports nothing: every class becomes an empty placeholder holding the saved values. OpenMM rebuilds the system from the force-field XML stored inside, and ParmEd writes the prmtop.
-- It will not overwrite an existing file unless you pass `--force`. Use `-o` to write elsewhere.
-- When a MELD run has no prmtop, discovery suggests this command (`MINE004`).
 
 ### How MDDB-workflow merges the parts (`MRG001`, `ORDER002`)
 

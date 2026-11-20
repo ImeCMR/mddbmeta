@@ -2,13 +2,15 @@
 
 ## Unreleased: MELD topology
 
-- `mddbmeta meld-prmtop <run>` writes an AMBER prmtop from a MELD run's `Data/system.dat`:
+- `mddbmeta meld-prmtop <run>` writes an AMBER prmtop (`meld_system.prmtop`) from a MELD run's `Data/system.dat`:
   - read with an inert unpickler that imports nothing (no MELD needed, no code from the file runs);
   - Grappa's split bonded forces are merged and its zeroed ff14SB torsions dropped, so the prmtop holds the simulated parameters;
   - implicit solvent is left out (no prmtop form); any other force a prmtop cannot hold is refused;
   - the prmtop's bond/angle/torsion/nonbonded energies must match the MELD system at the saved coordinates, or nothing is written.
 - `openmm` and `parmed` (and `numpy`) are now dependencies.
 - `MINE004` on a MELD run without a topology points to `mddbmeta meld-prmtop`.
+- Discovery writes `meld_system.prmtop` from each MELD run's `Data/system.dat` before scanning, and MELD runs use it as their topology (other prmtops are listed as not used). Reused while newer than `system.dat`; never overwrites a file it did not write; `--no-meld-prmtop` keeps discovery read-only. New findings: `MELD005` (topology written/reused), `MELD006` (could not be written).
+- Adapters get a `prepare(root, max_depth, exclude)` hook that runs before the scan.
 
 ## Unreleased: M6 MELD
 

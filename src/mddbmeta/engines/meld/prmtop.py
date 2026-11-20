@@ -40,6 +40,10 @@ DROPPABLE = {
     "MonteCarloMembraneBarostat": "barostat",
     "AndersenThermostat": "thermostat",
 }
+DEFAULT_NAME = (
+    "meld_system.prmtop"  # not topology.*: MDDB-workflow writes its own topology.* outputs
+)
+TITLE = "mddbmeta meld-prmtop from Data/system.dat"
 ENERGY_TOL = 1e-3  # kJ/mol, absolute ...
 ENERGY_RTOL = 1e-6  # ... plus relative
 
@@ -357,7 +361,7 @@ def write_prmtop(target: str | Path, output: str | Path | None = None, force: bo
 
     src = _find_system_dat(Path(target).expanduser())
     run_dir = src.parent.parent if src.parent.name == "Data" else src.parent
-    out = Path(output).expanduser() if output else run_dir / "topology.prmtop"
+    out = Path(output).expanduser() if output else run_dir / DEFAULT_NAME
     if out.exists() and not force:
         raise MddbmetaError(f"{out} exists; pass --force to overwrite it")
     if not out.parent.is_dir():
@@ -374,7 +378,9 @@ def write_prmtop(target: str | Path, output: str | Path | None = None, force: bo
     fd, tmp = tempfile.mkstemp(prefix=".mddbmeta-", suffix=".prmtop", dir=out.parent)
     os.close(fd)
     try:
-        struct.save(tmp, format="amber", overwrite=True)
+        parm = parmed.amber.AmberParm.from_structure(struct)
+        parm.parm_data["TITLE"] = [TITLE]
+        parm.write_parm(tmp)
         report = PrmtopReport(output=str(out), source=str(src), natom=len(struct.atoms),
                               nres=len(struct.residues), nbond=len(struct.bonds), dropped=dropped)  # fmt: skip
         if meld.positions is None:
@@ -396,8 +402,40 @@ def write_prmtop(target: str | Path, output: str | Path | None = None, force: bo
                     + "; ".join(bad)
                     + "); not written"
                 )
+        umask = os.umask(0)
+        os.umask(umask)
+        os.chmod(tmp, 0o666 & ~umask)  # mkstemp makes 0600; give it the usual permissions
         os.replace(tmp, out)
     finally:
         if os.path.exists(tmp):
             os.unlink(tmp)
     return report
+
+
+def is_generated(path: str | Path) -> bool:
+    """True for a prmtop this module wrote (its TITLE carries the marker)."""
+    try:
+        with open(path, "rb") as fh:
+            head = fh.read(400)
+    except OSError:
+        return False
+    return TITLE.encode() in head
+
+
+def ensure_prmtop(system_dat: Path) -> tuple[Path, PrmtopReport | None]:
+    """The run's generated prmtop: reused when it is newer than ``system_dat``, else (re)written.
+
+    Returns (path, report); report is None when an up-to-date file was reused.
+    Raises MddbmetaError when it cannot be written (a foreign file in the way, a failed check, ...).
+    """
+    run_dir = system_dat.parent.parent if system_dat.parent.name == "Data" else system_dat.parent
+    out = run_dir / DEFAULT_NAME
+    if out.exists():
+        if not is_generated(out):
+            raise MddbmetaError(f"{out} exists and was not written by mddbmeta; not overwriting it")
+        if out.stat().st_mtime >= system_dat.stat().st_mtime:
+            return out, None
+    try:
+        return out, write_prmtop(system_dat, out, force=True)
+    except OSError as exc:
+        raise MddbmetaError(f"cannot write {out}: {exc.strerror or exc}") from exc

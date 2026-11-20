@@ -14,6 +14,7 @@ through the script's temperature scaler. Walkers are recorded, not exported.
 
 from __future__ import annotations
 
+import os
 import posixpath
 import re
 from pathlib import Path
@@ -24,7 +25,7 @@ from mddbmeta.engines.base import BuildEvidence, EngineAdapter, ParsedFile, Snif
 from mddbmeta.engines.meld import files
 from mddbmeta.engines.namd import files as namd_files
 from mddbmeta.engines.openmm import classify_forcefield_files
-from mddbmeta.errors import MissingDependencyError
+from mddbmeta.errors import MddbmetaError, MissingDependencyError
 from mddbmeta.findings import finding
 from mddbmeta.model import (
     FileKind,
@@ -57,6 +58,47 @@ class MeldAdapter(EngineAdapter):
     def __init__(self) -> None:
         self._by_rel: dict[str, ParsedFile] = {}
         self.walkers: list[str] = []
+        self.generated: dict[
+            str, Any
+        ] = {}  # rel path of a prmtop written from system.dat -> report
+
+    # ---------------------------------------------------------------- prepare
+    def prepare(self, root: Path, max_depth: int, exclude: list[str]) -> list[Finding]:
+        """Write each MELD run's topology from its Data/system.dat, before the scan."""
+        from mddbmeta.discovery.scan import SKIP_DIRS, _excluded
+        from mddbmeta.engines.meld.prmtop import ensure_prmtop
+
+        findings: list[Finding] = []
+        found: list[Path] = []
+        seen: set[str] = set()
+        for dirpath, dirnames, filenames in os.walk(root, followlinks=True):  # as the scan walks
+            real = os.path.realpath(dirpath)
+            if real in seen:
+                dirnames[:] = []
+                continue
+            seen.add(real)
+            rel_dir = Path(dirpath).relative_to(root).as_posix()
+            depth = 0 if rel_dir == "." else len(rel_dir.split("/"))
+            dirnames[:] = sorted(
+                d for d in dirnames
+                if depth < max_depth and not d.startswith(".") and d not in SKIP_DIRS
+                and not _excluded(d if rel_dir == "." else f"{rel_dir}/{d}", exclude)
+            )  # fmt: skip
+            if Path(dirpath).name == "Data" and "system.dat" in filenames:
+                found.append(Path(dirpath) / "system.dat")
+        for dat in found:
+            rel = dat.relative_to(root).as_posix()
+            if _excluded(rel, exclude):
+                continue
+            try:
+                out, report = ensure_prmtop(dat)
+            except MddbmetaError as exc:
+                findings.append(
+                    finding("MELD006", f"no topology written from {rel}: {exc}", paths=[rel])
+                )
+                continue
+            self.generated[out.relative_to(root).as_posix()] = report
+        return findings
 
     # ------------------------------------------------------------------ sniff
     def sniff(self, path: Path, head: bytes) -> SniffResult | None:
@@ -142,7 +184,23 @@ class MeldAdapter(EngineAdapter):
                     finding("LOAD001", f"MELD data store not read: {exc}", paths=["Data/Blocks"])
                 )
 
-        topology = next((f for f in parsed if f.format in ("prmtop", "psf") and f.ok), None)
+        tops = [f for f in parsed if f.format in ("prmtop", "psf") and f.ok]
+        # the prmtop written from Data/system.dat is what MELD ran; any other is a stand-in
+        topology = next((f for f in tops if f.rel in self.generated), None) or (
+            tops[0] if tops else None
+        )
+        if topology is not None and topology.rel in self.generated:
+            report = self.generated[topology.rel]
+            others = [f.rel for f in tops if f is not topology]
+            msg = (
+                f"topology {topology.rel} {'written' if report else 'reused'} from Data/system.dat"
+            )
+            if report is not None and report.checked:
+                msg += " (bond/angle/torsion/nonbonded energies match the MELD system)"
+            if others:
+                msg += f"; not used: {', '.join(others)}"
+            findings.append(finding("MELD005", msg, paths=[topology.rel, *others],
+                                    data={"energies": report.energies if report else None}))  # fmt: skip
         structure = self._structure(parsed, topology)
         scaler = setup.temperature_scaler if setup else None
         for f in ladder:

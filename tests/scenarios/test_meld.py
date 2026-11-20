@@ -11,8 +11,10 @@ import pytest
 from amberfiles import protein_residues, write_prmtop
 from mddbmeta.engines.meld.files import read_remd_log, read_setup, temperature_of
 from mddbmeta.export.mddb import build_export
+from mddbmeta.model import FileRole
 from mddbmeta.pipeline import discover
 from mddbmeta.validate.schema_lite import check_inputs
+from meldfiles import NATOM, write_system_dat
 
 SETUP = """
 import meld
@@ -182,6 +184,63 @@ def test_missing_topology_points_to_meld_prmtop(tmp_path: Path) -> None:
     p = discover(root)
     hints = [f for f in p.findings if f.code == "MINE004"]
     assert hints and "mddbmeta meld-prmtop" in hints[0].message
+
+
+def _meld_with_system_dat(root: Path) -> Path:
+    """A MELD tree whose run also saved Data/system.dat (33 atoms; DCDs to match)."""
+    make_meld_tree(root)
+    for sub, stem in (("trajectories", "trajectory"), ("walkers", "follow")):
+        for i in range(3):
+            _dcd(root / sub / f"{stem}.{i:02d}.dcd", NATOM, 10)
+    (root / "system.prmtop").unlink()
+    write_system_dat(root)
+    return root
+
+
+def test_topology_is_written_from_system_dat_then_used(tmp_path: Path) -> None:
+    root = _meld_with_system_dat(tmp_path)
+    p = discover(root)
+    assert (root / "meld_system.prmtop").is_file()
+    umask = os.umask(0)
+    os.umask(umask)
+    assert (root / "meld_system.prmtop").stat().st_mode & 0o777 == 0o666 & ~umask
+    assert {s.files[FileRole.TOPOLOGY].path for s in p.steps.values()} == {"meld_system.prmtop"}
+    assert p.mined["input_topology_filepath"].value == "meld_system.prmtop"
+    assert p.system is not None and p.system.natom == NATOM
+    msg = next(f.message for f in p.findings if f.code == "MELD005")
+    assert "written" in msg and "energies match" in msg
+    assert not [f for f in p.findings if f.code in ("MINE004", "MELD006")]
+
+    # a second discovery reuses the file instead of rewriting it
+    stamp = (root / "meld_system.prmtop").stat().st_mtime_ns
+    p = discover(root)
+    assert (root / "meld_system.prmtop").stat().st_mtime_ns == stamp
+    assert "reused" in next(f.message for f in p.findings if f.code == "MELD005")
+
+
+def test_written_topology_wins_over_another_prmtop(tmp_path: Path) -> None:
+    root = _meld_with_system_dat(tmp_path)
+    write_prmtop(
+        root / "system.prmtop", [("ALA", ["N", "CA"])] * 1, ifbox=0
+    )  # a stand-in from tleap
+    p = discover(root)
+    assert p.mined["input_topology_filepath"].value == "meld_system.prmtop"
+    assert "not used: system.prmtop" in next(f.message for f in p.findings if f.code == "MELD005")
+
+
+def test_read_only_discovery_writes_nothing(tmp_path: Path) -> None:
+    root = _meld_with_system_dat(tmp_path)
+    p = discover(root, write_topology=False)
+    assert not (root / "meld_system.prmtop").exists()
+    assert "mddbmeta meld-prmtop" in next(f.message for f in p.findings if f.code == "MINE004")
+
+
+def test_foreign_file_is_not_overwritten(tmp_path: Path) -> None:
+    root = _meld_with_system_dat(tmp_path)
+    (root / "meld_system.prmtop").write_text("someone else's file\n")
+    p = discover(root)
+    assert (root / "meld_system.prmtop").read_text() == "someone else's file\n"
+    assert any(f.code == "MELD006" and "not overwriting" in f.message for f in p.findings)
 
 
 @pytest.mark.external_data

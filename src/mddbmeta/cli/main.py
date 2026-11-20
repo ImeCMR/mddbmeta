@@ -39,6 +39,13 @@ def _discovery_args(p: argparse.ArgumentParser) -> None:
     p.add_argument(
         "--max-depth", type=int, default=None, help="directory depth to scan (default 4)"
     )
+    p.add_argument(
+        "--no-meld-prmtop",
+        dest="write_topology",
+        action="store_false",
+        default=None,
+        help="MELD: do not write meld_system.prmtop from Data/system.dat (read-only discovery)",
+    )
 
 
 def _options(args: argparse.Namespace) -> dict[str, Any]:
@@ -47,6 +54,7 @@ def _options(args: argparse.Namespace) -> dict[str, Any]:
         "engine": args.engine,
         "exclude": args.exclude,
         "max_depth": args.max_depth,
+        "write_topology": args.write_topology,
     }
 
 
@@ -123,7 +131,7 @@ def build_parser() -> argparse.ArgumentParser:
         help="write an AMBER prmtop from a MELD run's Data/system.dat (exact, Grappa included)",
     )
     p.add_argument("target", help="MELD run directory (or its Data/system.dat)")
-    p.add_argument("-o", "--output", help="prmtop to write (default: <run>/topology.prmtop)")
+    p.add_argument("-o", "--output", help="prmtop to write (default: <run>/meld_system.prmtop)")
     p.add_argument("--force", action="store_true", help="overwrite an existing output file")
 
     sub.add_parser(
