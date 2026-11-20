@@ -128,11 +128,14 @@ def build_parser() -> argparse.ArgumentParser:
     p = sub.add_parser(
         "meld-prmtop",
         parents=[common],
-        help="write an AMBER prmtop from a MELD run's Data/system.dat (exact, Grappa included)",
+        help="write an AMBER prmtop (exact, Grappa included) and the starting-structure PDB "
+        "from a MELD run's Data/system.dat",
     )
     p.add_argument("target", help="MELD run directory (or its Data/system.dat)")
-    p.add_argument("-o", "--output", help="prmtop to write (default: <run>/meld_system.prmtop)")
-    p.add_argument("--force", action="store_true", help="overwrite an existing output file")
+    p.add_argument("-o", "--output", help="prmtop to write (default: <run>/meld_system.prmtop); "
+                   "the PDB goes next to it, with the same name and .pdb")  # fmt: skip
+    p.add_argument("--no-pdb", action="store_true", help="do not write the starting-structure PDB")
+    p.add_argument("--force", action="store_true", help="overwrite existing output files")
 
     sub.add_parser(
         "template-path", help="print the Jinja2 inputs template for `mwf dataset inputs -it`"
@@ -277,8 +280,24 @@ def cmd_reconcile(args: argparse.Namespace) -> int:
 
 
 def cmd_meld_prmtop(args: argparse.Namespace) -> int:
-    from mddbmeta.engines.meld.prmtop import DROPPABLE, write_prmtop
+    from mddbmeta.engines.meld.prmtop import (
+        DROPPABLE,
+        PDB_NAME,
+        find_system_dat,
+        write_prmtop,
+        write_structure,
+    )
 
+    pdb = None
+    if not args.no_pdb:
+        if args.output:
+            pdb = Path(args.output).expanduser().with_suffix(".pdb")
+        else:
+            src = find_system_dat(Path(args.target).expanduser())
+            run_dir = src.parent.parent if src.parent.name == "Data" else src.parent
+            pdb = run_dir / PDB_NAME
+        if pdb.exists() and not args.force:  # check before anything is written
+            raise MddbmetaError(f"{pdb} exists; pass --force to overwrite it (or --no-pdb)")
     report = write_prmtop(args.target, args.output, force=args.force)
     print(f"wrote {report.output}")
     print(
@@ -294,6 +313,15 @@ def cmd_meld_prmtop(args: argparse.Namespace) -> int:
     if left:
         print(f"  not in the prmtop (no prmtop form): {', '.join(left)}")
     print("  use it in inputs.yaml as input_topology_filepath")
+    if not args.no_pdb and report.checked:  # checked: system.dat holds starting coordinates
+        written, natom = write_structure(args.target, pdb, force=True)  # checked above
+        print(f"wrote {written}")
+        print(f"  the starting structure ({natom} atoms, same atom order as the prmtop)")
+        print(
+            "  use it in inputs.yaml as input_structure_filepath if the run has no PDB of its own"
+        )
+    elif not args.no_pdb:
+        print("  no starting coordinates in system.dat: no PDB written")
     return EXIT_OK
 
 

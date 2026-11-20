@@ -15,6 +15,9 @@ Implicit solvent (``CustomGBForce``/``GBSAOBCForce``) has no prmtop form and is 
 
 Every conversion is checked: the bond, angle, torsion and nonbonded energies of the written prmtop
 must match the MELD system's at the saved coordinates, or nothing is written.
+
+The saved coordinates (MELD's template coordinates, the run's starting structure) can also be
+written as a PDB with the same topology, so its atoms match the prmtop one to one.
 """
 
 from __future__ import annotations
@@ -44,6 +47,8 @@ DEFAULT_NAME = (
     "meld_system.prmtop"  # not topology.*: MDDB-workflow writes its own topology.* outputs
 )
 TITLE = "mddbmeta meld-prmtop from Data/system.dat"
+PDB_NAME = "meld_system.pdb"  # the starting structure, for runs that have no PDB of their own
+PDB_MARK = "REMARK   1 mddbmeta: starting structure from Data/system.dat"
 ENERGY_TOL = 1e-3  # kJ/mol, absolute ...
 ENERGY_RTOL = 1e-6  # ... plus relative
 
@@ -345,7 +350,7 @@ class PrmtopReport:
     checked: bool = True
 
 
-def _find_system_dat(target: Path) -> Path:
+def find_system_dat(target: Path) -> Path:
     if target.is_file():
         return target
     for cand in (target / "Data" / "system.dat", target / "system.dat"):
@@ -359,7 +364,7 @@ def write_prmtop(target: str | Path, output: str | Path | None = None, force: bo
     """Convert ``target`` (a MELD run directory or its ``system.dat``) to an AMBER prmtop."""
     import parmed
 
-    src = _find_system_dat(Path(target).expanduser())
+    src = find_system_dat(Path(target).expanduser())
     run_dir = src.parent.parent if src.parent.name == "Data" else src.parent
     out = Path(output).expanduser() if output else run_dir / DEFAULT_NAME
     if out.exists() and not force:
@@ -402,24 +407,77 @@ def write_prmtop(target: str | Path, output: str | Path | None = None, force: bo
                     + "; ".join(bad)
                     + "); not written"
                 )
-        umask = os.umask(0)
-        os.umask(umask)
-        os.chmod(tmp, 0o666 & ~umask)  # mkstemp makes 0600; give it the usual permissions
-        os.replace(tmp, out)
+        _publish(tmp, out)
     finally:
         if os.path.exists(tmp):
             os.unlink(tmp)
     return report
 
 
-def is_generated(path: str | Path) -> bool:
-    """True for a prmtop this module wrote (its TITLE carries the marker)."""
+def _publish(tmp: str, out: Path) -> None:
+    """Move a finished temp file into place, with the permissions a new file would get."""
+    umask = os.umask(0)
+    os.umask(umask)
+    os.chmod(tmp, 0o666 & ~umask)  # mkstemp makes 0600
+    os.replace(tmp, out)
+
+
+def write_structure(target: str | Path, output: str | Path | None = None, force: bool = False
+                    ) -> tuple[Path, int]:  # fmt: skip
+    """Write the starting structure saved in a MELD ``system.dat`` as a PDB; returns (path, natom)."""
+    import io
+
+    import openmm.app as app
+    import openmm.unit as unit
+
+    src = find_system_dat(Path(target).expanduser())
+    run_dir = src.parent.parent if src.parent.name == "Data" else src.parent
+    out = Path(output).expanduser() if output else run_dir / PDB_NAME
+    if out.exists() and not force:
+        raise MddbmetaError(f"{out} exists; pass --force to overwrite it")
+    if not out.parent.is_dir():
+        raise MddbmetaError(f"output directory {out.parent} does not exist")
+    meld = read_meld_system(src)
+    if meld.positions is None:
+        raise MddbmetaError(f"{src} holds no starting coordinates")
+    buf = io.StringIO()
+    app.PDBFile.writeFile(meld.topology, meld.positions * unit.nanometer, buf)
+    fd, tmp = tempfile.mkstemp(prefix=".mddbmeta-", suffix=".pdb", dir=out.parent)
+    try:
+        with os.fdopen(fd, "w") as fh:
+            fh.write(PDB_MARK + "\n" + buf.getvalue())
+        _publish(tmp, out)
+    finally:
+        if os.path.exists(tmp):
+            os.unlink(tmp)
+    return out, meld.topology.getNumAtoms()
+
+
+def is_generated(path: str | Path, marker: str = TITLE) -> bool:
+    """True for a file this module wrote (the prmtop TITLE / PDB REMARK carries the marker)."""
     try:
         with open(path, "rb") as fh:
             head = fh.read(400)
     except OSError:
         return False
-    return TITLE.encode() in head
+    return marker.encode() in head
+
+
+def ensure_structure(system_dat: Path) -> tuple[Path, bool]:
+    """The run's generated starting-structure PDB: reused when newer than ``system_dat``, else
+    (re)written. Returns (path, written). Raises MddbmetaError when it cannot be written."""
+    run_dir = system_dat.parent.parent if system_dat.parent.name == "Data" else system_dat.parent
+    out = run_dir / PDB_NAME
+    if out.exists():
+        if not is_generated(out, PDB_MARK):
+            raise MddbmetaError(f"{out} exists and was not written by mddbmeta; not overwriting it")
+        if out.stat().st_mtime >= system_dat.stat().st_mtime:
+            return out, False
+    try:
+        write_structure(system_dat, out, force=True)
+    except OSError as exc:
+        raise MddbmetaError(f"cannot write {out}: {exc.strerror or exc}") from exc
+    return out, True
 
 
 def ensure_prmtop(system_dat: Path) -> tuple[Path, PrmtopReport | None]:

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import os
+import shutil
 import struct
 from pathlib import Path
 
@@ -14,7 +15,7 @@ from mddbmeta.export.mddb import build_export
 from mddbmeta.model import FileRole
 from mddbmeta.pipeline import discover
 from mddbmeta.validate.schema_lite import check_inputs
-from meldfiles import NATOM, write_system_dat
+from meldfiles import NATOM, PDB, write_system_dat
 
 SETUP = """
 import meld
@@ -228,10 +229,62 @@ def test_written_topology_wins_over_another_prmtop(tmp_path: Path) -> None:
     assert "not used: system.prmtop" in next(f.message for f in p.findings if f.code == "MELD005")
 
 
+def test_starting_structure_is_written_when_the_run_has_no_pdb(tmp_path: Path) -> None:
+    import numpy as np
+    import openmm.app as app
+    import openmm.unit as unit
+
+    root = _meld_with_system_dat(tmp_path)
+    p = discover(root)
+    pdb = root / "meld_system.pdb"
+    assert pdb.is_file()
+    assert p.mined["input_structure_filepath"].value == "meld_system.pdb"
+    assert "written" in next(f.message for f in p.findings if f.code == "MELD007")
+    # same atoms, in the same order, as the written topology; the saved starting coordinates
+    got = app.PDBFile(str(pdb))
+    prm = app.AmberPrmtopFile(str(root / "meld_system.prmtop"))
+    assert [a.name for a in got.topology.atoms()] == [a.name for a in prm.topology.atoms()]
+    want = app.PDBFile(str(PDB)).getPositions(asNumpy=True).value_in_unit(unit.nanometer)
+    assert np.allclose(
+        got.getPositions(asNumpy=True).value_in_unit(unit.nanometer), want, atol=1e-3
+    )
+
+    stamp = pdb.stat().st_mtime_ns
+    p = discover(root)
+    assert pdb.stat().st_mtime_ns == stamp
+    assert "reused" in next(f.message for f in p.findings if f.code == "MELD007")
+
+
+def test_starting_structure_beats_analysis_pdbs_in_subfolders(tmp_path: Path) -> None:
+    root = _meld_with_system_dat(tmp_path)
+    (root / "cluster").mkdir()
+    shutil.copy(PDB, root / "cluster" / "best_rmsd.pdb")  # a clustering result, same atom count
+    p = discover(root)
+    assert p.mined["input_structure_filepath"].value == "meld_system.pdb"
+
+
+def test_the_runs_own_pdb_is_preferred(tmp_path: Path) -> None:
+    root = _meld_with_system_dat(tmp_path)
+    shutil.copy(PDB, root / "protein_min.pdb")
+    p = discover(root)
+    assert p.mined["input_structure_filepath"].value == "protein_min.pdb"
+    assert not [f for f in p.findings if f.code == "MELD007"]
+
+
+def test_foreign_structure_is_not_overwritten(tmp_path: Path) -> None:
+    root = _meld_with_system_dat(tmp_path)
+    (root / "meld_system.pdb").write_text("REMARK someone else's file\nEND\n")
+    p = discover(root)
+    assert (root / "meld_system.pdb").read_text() == "REMARK someone else's file\nEND\n"
+    assert any(f.code == "MELD008" and "not overwriting" in f.message for f in p.findings)
+    assert p.mined["input_topology_filepath"].value == "meld_system.prmtop"
+
+
 def test_read_only_discovery_writes_nothing(tmp_path: Path) -> None:
     root = _meld_with_system_dat(tmp_path)
     p = discover(root, write_topology=False)
     assert not (root / "meld_system.prmtop").exists()
+    assert not (root / "meld_system.pdb").exists()
     assert "mddbmeta meld-prmtop" in next(f.message for f in p.findings if f.code == "MINE004")
 
 

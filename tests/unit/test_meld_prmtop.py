@@ -96,6 +96,25 @@ def test_cli(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
     assert "no Data/system.dat" in capsys.readouterr().err
 
 
+def test_cli_writes_the_starting_structure(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    run = _run_dir(tmp_path)
+    assert main(["meld-prmtop", str(run)]) == 0
+    assert (run / "meld_system.prmtop").is_file() and (run / "meld_system.pdb").is_file()
+    assert "input_structure_filepath" in capsys.readouterr().out
+    assert app.PDBFile(str(run / "meld_system.pdb")).topology.getNumAtoms() == 33
+    # an existing PDB stops the command before anything is written
+    (run / "meld_system.prmtop").unlink()
+    assert main(["meld-prmtop", str(run)]) == 1
+    assert "--no-pdb" in capsys.readouterr().err
+    assert not (run / "meld_system.prmtop").exists()
+    assert main(["meld-prmtop", str(run), "--no-pdb"]) == 0
+    # -o: the PDB goes next to the prmtop, with the same name
+    assert main(["meld-prmtop", str(run), "-o", str(tmp_path / "x.prmtop")]) == 0
+    assert (tmp_path / "x.pdb").is_file()
+
+
 @pytest.mark.skipif(not PROTEIN_L, reason="set MDDBMETA_MELD_RUN to a real MELD run directory")
 def test_real_meld_run(tmp_path: Path) -> None:
     report = write_prmtop(PROTEIN_L, tmp_path / "topology.prmtop")

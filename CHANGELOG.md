@@ -10,6 +10,7 @@
 - `openmm` and `parmed` (and `numpy`) are now dependencies.
 - `MINE004` on a MELD run without a topology points to `mddbmeta meld-prmtop`.
 - Discovery writes `meld_system.prmtop` from each MELD run's `Data/system.dat` before scanning, and MELD runs use it as their topology (other prmtops are listed as not used). Reused while newer than `system.dat`; never overwrites a file it did not write; `--no-meld-prmtop` keeps discovery read-only. New findings: `MELD005` (topology written/reused), `MELD006` (could not be written).
+- MELD runs with no PDB of their own get their starting structure too: `meld_system.pdb` is written from the template coordinates in `Data/system.dat` (same atoms and order as the prmtop) and used as `input_structure_filepath` when no PDB in the run matches the topology. `meld-prmtop` writes it as well (`--no-pdb` to skip). New findings: `MELD007` (structure written/reused and used), `MELD008` (could not be written).
 - Adapters get a `prepare(root, max_depth, exclude)` hook that runs before the scan.
 
 ## Unreleased: M6 MELD

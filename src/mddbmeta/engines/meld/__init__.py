@@ -58,15 +58,17 @@ class MeldAdapter(EngineAdapter):
     def __init__(self) -> None:
         self._by_rel: dict[str, ParsedFile] = {}
         self.walkers: list[str] = []
-        self.generated: dict[
-            str, Any
-        ] = {}  # rel path of a prmtop written from system.dat -> report
+        # rel path of a prmtop written from system.dat -> report (None: reused)
+        self.generated: dict[str, Any] = {}
+        # rel path of a starting-structure PDB written from system.dat -> written (False: reused)
+        self.structures: dict[str, bool] = {}
 
     # ---------------------------------------------------------------- prepare
     def prepare(self, root: Path, max_depth: int, exclude: list[str]) -> list[Finding]:
-        """Write each MELD run's topology from its Data/system.dat, before the scan."""
+        """Write each MELD run's topology and starting structure from its Data/system.dat,
+        before the scan."""
         from mddbmeta.discovery.scan import SKIP_DIRS, _excluded
-        from mddbmeta.engines.meld.prmtop import ensure_prmtop
+        from mddbmeta.engines.meld.prmtop import ensure_prmtop, ensure_structure
 
         findings: list[Finding] = []
         found: list[Path] = []
@@ -92,12 +94,19 @@ class MeldAdapter(EngineAdapter):
                 continue
             try:
                 out, report = ensure_prmtop(dat)
+                self.generated[out.relative_to(root).as_posix()] = report
             except MddbmetaError as exc:
                 findings.append(
                     finding("MELD006", f"no topology written from {rel}: {exc}", paths=[rel])
                 )
-                continue
-            self.generated[out.relative_to(root).as_posix()] = report
+            try:  # used only when the run has no PDB of its own (see _structure)
+                pdb, written = ensure_structure(dat)
+                self.structures[pdb.relative_to(root).as_posix()] = written
+            except MddbmetaError as exc:
+                findings.append(
+                    finding("MELD008", f"no starting structure written from {rel}: {exc}",
+                            paths=[rel])
+                )  # fmt: skip
         return findings
 
     # ------------------------------------------------------------------ sniff
@@ -202,6 +211,14 @@ class MeldAdapter(EngineAdapter):
             findings.append(finding("MELD005", msg, paths=[topology.rel, *others],
                                     data={"energies": report.energies if report else None}))  # fmt: skip
         structure = self._structure(parsed, topology)
+        if structure in self.structures:
+            how = "written" if self.structures[structure] else "reused"
+            findings.append(finding(
+                "MELD007",
+                f"starting structure {structure} {how} from Data/system.dat (no PDB in the run folder "
+                "matching the topology)",
+                paths=[structure],
+            ))  # fmt: skip
         scaler = setup.temperature_scaler if setup else None
         for f in ladder:
             m = _INDEX.search(posixpath.basename(f.rel))
@@ -289,7 +306,21 @@ class MeldAdapter(EngineAdapter):
             else None
         )
         pdbs = [f for f in parsed if f.format == "pdb" and f.ok]
-        pdbs.sort(key=lambda f: (posixpath.dirname(f.rel) != "", "min" not in f.rel, f.rel))
+        # 1. a PDB of the run's own in the run folder (e.g. protein_min.pdb); 2. the starting
+        # structure written from Data/system.dat; 3. PDBs in subfolders, which are mostly
+        # analysis outputs (cluster centroids, extracted frames)
+        run_dir = posixpath.dirname(next(iter(self.structures), ""))
+
+        def rank(f: ParsedFile) -> tuple[int, bool, str]:
+            if f.rel in self.structures:
+                tier = 1
+            elif posixpath.dirname(f.rel) == run_dir:
+                tier = 0
+            else:
+                tier = 2
+            return tier, "min" not in f.rel, f.rel
+
+        pdbs.sort(key=rank)
         for f in pdbs:
             if natom is None or f.result.natom == natom:
                 return f.rel
