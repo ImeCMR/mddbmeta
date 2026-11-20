@@ -2,16 +2,16 @@
 
 ## Unreleased: MELD topology
 
-- `mddbmeta meld-prmtop <run>` writes an AMBER prmtop (`meld_system.prmtop`) from a MELD run's `Data/system.dat`:
+- `mddbmeta meld-prmtop <run>` writes an AMBER prmtop (`topology.prmtop`) from a MELD run's `Data/system.dat`:
   - read with an inert unpickler that imports nothing (no MELD needed, no code from the file runs);
   - Grappa's split bonded forces are merged and its zeroed ff14SB torsions dropped, so the prmtop holds the simulated parameters;
   - implicit solvent is left out (no prmtop form); any other force a prmtop cannot hold is refused;
   - the prmtop's bond/angle/torsion/nonbonded energies must match the MELD system at the saved coordinates, or nothing is written.
 - `openmm` and `parmed` (and `numpy`) are now dependencies.
 - `MINE004` on a MELD run without a topology points to `mddbmeta meld-prmtop`.
-- Discovery writes `meld_system.prmtop` from each MELD run's `Data/system.dat` before scanning, and MELD runs use it as their topology (other prmtops are listed as not used). Reused while newer than `system.dat`; never overwrites a file it did not write; `--no-meld-prmtop` keeps discovery read-only. New findings: `MELD005` (topology written/reused), `MELD006` (could not be written).
+- Discovery writes `topology.prmtop` from each MELD run's `Data/system.dat` before scanning, and MELD runs use it as their topology (other prmtops are listed as not used). Reused while newer than `system.dat`; never overwrites a file it did not write; `--no-meld-prmtop` keeps discovery read-only. New findings: `MELD005` (topology written/reused), `MELD006` (could not be written).
 - MELD setup scripts in the older syntax (`SystemBuilder(forcefield=...)`, `options = RunOptions(); options.use_bigger_timestep = True`, ...) are read: force field, implicit-solvent model, timestep, steps per exchange and minimisation steps. Before, these were missed and the timestep fell back to 2 fs. `AmberOptions(forcefield=...)` now gives `ff` too, `ff14sbside` is reported as `Amber ff14SBonlysc` (the leaprc MELD sources), and when both `use_big_timestep` and `use_bigger_timestep` are set the timestep is 3.5 fs, as in MELD.
-- MELD runs with no PDB of their own get their starting structure too: `meld_system.pdb` is written from the template coordinates in `Data/system.dat` (same atoms and order as the prmtop) and used as `input_structure_filepath` when no PDB in the run matches the topology. `meld-prmtop` writes it as well (`--no-pdb` to skip). Older MELD `system.dat` files (`meld.system.system.System`, which keep the AMBER prmtop and inpcrd as text) are supported too: the saved prmtop is written out unchanged apart from its title, and the starting structure comes from the saved inpcrd (angstrom). New findings: `MELD007` (structure written/reused and used), `MELD008` (could not be written).
+- MELD runs with no PDB of their own get their starting structure too: `topology.pdb` is written from the template coordinates in `Data/system.dat` (same atoms and order as the prmtop) and used as `input_structure_filepath` when no PDB in the run matches the topology. `meld-prmtop` writes it as well (`--no-pdb` to skip). Older MELD `system.dat` files (`meld.system.system.System`, which keep the AMBER prmtop and inpcrd as text) are supported too: the saved prmtop is written out unchanged apart from its title, and the starting structure comes from the saved inpcrd (angstrom). New findings: `MELD007` (structure written/reused and used), `MELD008` (could not be written).
 - Adapters get a `prepare(root, max_depth, exclude)` hook that runs before the scan.
 
 ## Unreleased: M6 MELD

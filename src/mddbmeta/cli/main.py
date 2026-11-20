@@ -44,7 +44,7 @@ def _discovery_args(p: argparse.ArgumentParser) -> None:
         dest="write_topology",
         action="store_false",
         default=None,
-        help="MELD: do not write meld_system.prmtop from Data/system.dat (read-only discovery)",
+        help="MELD: do not write topology.prmtop from Data/system.dat (read-only discovery)",
     )
 
 
@@ -132,7 +132,7 @@ def build_parser() -> argparse.ArgumentParser:
         "from a MELD run's Data/system.dat",
     )
     p.add_argument("target", help="MELD run directory (or its Data/system.dat)")
-    p.add_argument("-o", "--output", help="prmtop to write (default: <run>/meld_system.prmtop); "
+    p.add_argument("-o", "--output", help="prmtop to write (default: <run>/topology.prmtop); "
                    "the PDB goes next to it, with the same name and .pdb")  # fmt: skip
     p.add_argument("--no-pdb", action="store_true", help="do not write the starting-structure PDB")
     p.add_argument("--force", action="store_true", help="overwrite existing output files")

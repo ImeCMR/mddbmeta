@@ -35,7 +35,7 @@ Design rules:
 
 ## Adding an engine
 
-1. Implement `EngineAdapter` in `engines/<engine>/`. `sniff` classifies files by content. `parse` never raises. `build_steps` groups files into `Step`s and fills `settings`, `runtime`, `trajectory` and the `FileRole.INPUT_COORDS` / `OUTPUT_RESTART` files; lineage and everything downstream is derived from those. Optionally, `prepare` writes derived files before the scan sees the tree (MELD writes `meld_system.prmtop` and `meld_system.pdb` from `Data/system.dat`); it is skipped with `--no-meld-prmtop` / `write_topology=False`.
+1. Implement `EngineAdapter` in `engines/<engine>/`. `sniff` classifies files by content. `parse` never raises. `build_steps` groups files into `Step`s and fills `settings`, `runtime`, `trajectory` and the `FileRole.INPUT_COORDS` / `OUTPUT_RESTART` files; lineage and everything downstream is derived from those. Optionally, `prepare` writes derived files before the scan sees the tree (MELD writes `topology.prmtop` and `topology.pdb` from `Data/system.dat`); it is skipped with `--no-meld-prmtop` / `write_topology=False`.
 2. Register it under the `mddbmeta.engines` entry point, or in `engines/registry.py`.
 3. Add a synthetic-file writer and scenarios under `tests/`.
 

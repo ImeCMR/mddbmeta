@@ -287,21 +287,21 @@ def _meld_with_system_dat(root: Path) -> Path:
 def test_topology_is_written_from_system_dat_then_used(tmp_path: Path) -> None:
     root = _meld_with_system_dat(tmp_path)
     p = discover(root)
-    assert (root / "meld_system.prmtop").is_file()
+    assert (root / "topology.prmtop").is_file()
     umask = os.umask(0)
     os.umask(umask)
-    assert (root / "meld_system.prmtop").stat().st_mode & 0o777 == 0o666 & ~umask
-    assert {s.files[FileRole.TOPOLOGY].path for s in p.steps.values()} == {"meld_system.prmtop"}
-    assert p.mined["input_topology_filepath"].value == "meld_system.prmtop"
+    assert (root / "topology.prmtop").stat().st_mode & 0o777 == 0o666 & ~umask
+    assert {s.files[FileRole.TOPOLOGY].path for s in p.steps.values()} == {"topology.prmtop"}
+    assert p.mined["input_topology_filepath"].value == "topology.prmtop"
     assert p.system is not None and p.system.natom == NATOM
     msg = next(f.message for f in p.findings if f.code == "MELD005")
     assert "written" in msg and "energies match" in msg
     assert not [f for f in p.findings if f.code in ("MINE004", "MELD006")]
 
     # a second discovery reuses the file instead of rewriting it
-    stamp = (root / "meld_system.prmtop").stat().st_mtime_ns
+    stamp = (root / "topology.prmtop").stat().st_mtime_ns
     p = discover(root)
-    assert (root / "meld_system.prmtop").stat().st_mtime_ns == stamp
+    assert (root / "topology.prmtop").stat().st_mtime_ns == stamp
     assert "reused" in next(f.message for f in p.findings if f.code == "MELD005")
 
 
@@ -311,7 +311,7 @@ def test_written_topology_wins_over_another_prmtop(tmp_path: Path) -> None:
         root / "system.prmtop", [("ALA", ["N", "CA"])] * 1, ifbox=0
     )  # a stand-in from tleap
     p = discover(root)
-    assert p.mined["input_topology_filepath"].value == "meld_system.prmtop"
+    assert p.mined["input_topology_filepath"].value == "topology.prmtop"
     assert "not used: system.prmtop" in next(f.message for f in p.findings if f.code == "MELD005")
 
 
@@ -322,13 +322,13 @@ def test_starting_structure_is_written_when_the_run_has_no_pdb(tmp_path: Path) -
 
     root = _meld_with_system_dat(tmp_path)
     p = discover(root)
-    pdb = root / "meld_system.pdb"
+    pdb = root / "topology.pdb"
     assert pdb.is_file()
-    assert p.mined["input_structure_filepath"].value == "meld_system.pdb"
+    assert p.mined["input_structure_filepath"].value == "topology.pdb"
     assert "written" in next(f.message for f in p.findings if f.code == "MELD007")
     # same atoms, in the same order, as the written topology; the saved starting coordinates
     got = app.PDBFile(str(pdb))
-    prm = app.AmberPrmtopFile(str(root / "meld_system.prmtop"))
+    prm = app.AmberPrmtopFile(str(root / "topology.prmtop"))
     assert [a.name for a in got.topology.atoms()] == [a.name for a in prm.topology.atoms()]
     want = app.PDBFile(str(PDB)).getPositions(asNumpy=True).value_in_unit(unit.nanometer)
     assert np.allclose(
@@ -346,7 +346,7 @@ def test_starting_structure_beats_analysis_pdbs_in_subfolders(tmp_path: Path) ->
     (root / "cluster").mkdir()
     shutil.copy(PDB, root / "cluster" / "best_rmsd.pdb")  # a clustering result, same atom count
     p = discover(root)
-    assert p.mined["input_structure_filepath"].value == "meld_system.pdb"
+    assert p.mined["input_structure_filepath"].value == "topology.pdb"
 
 
 def test_the_runs_own_pdb_is_preferred(tmp_path: Path) -> None:
@@ -359,19 +359,19 @@ def test_the_runs_own_pdb_is_preferred(tmp_path: Path) -> None:
 
 def test_foreign_structure_is_not_overwritten(tmp_path: Path) -> None:
     root = _meld_with_system_dat(tmp_path)
-    (root / "meld_system.pdb").write_text("REMARK someone else's file\nEND\n")
+    (root / "topology.pdb").write_text("REMARK someone else's file\nEND\n")
     p = discover(root)
-    assert (root / "meld_system.pdb").read_text() == "REMARK someone else's file\nEND\n"
+    assert (root / "topology.pdb").read_text() == "REMARK someone else's file\nEND\n"
     assert any(f.code == "MELD008" and "not overwriting" in f.message for f in p.findings)
-    assert p.mined["input_topology_filepath"].value == "meld_system.prmtop"
+    assert p.mined["input_topology_filepath"].value == "topology.prmtop"
 
 
 def test_older_meld_layout_gives_topology_and_structure(tmp_path: Path) -> None:
     root = _meld_with_system_dat(tmp_path)
     write_legacy_system_dat(root)  # replaces the newer system.dat
     p = discover(root)
-    assert p.mined["input_topology_filepath"].value == "meld_system.prmtop"
-    assert p.mined["input_structure_filepath"].value == "meld_system.pdb"
+    assert p.mined["input_topology_filepath"].value == "topology.prmtop"
+    assert p.mined["input_structure_filepath"].value == "topology.pdb"
     assert p.system is not None and p.system.natom == NATOM
     assert "written out unchanged" in next(f.message for f in p.findings if f.code == "MELD005")
     assert not [f for f in p.findings if f.code in ("MINE004", "MELD006", "MELD008")]
@@ -380,16 +380,16 @@ def test_older_meld_layout_gives_topology_and_structure(tmp_path: Path) -> None:
 def test_read_only_discovery_writes_nothing(tmp_path: Path) -> None:
     root = _meld_with_system_dat(tmp_path)
     p = discover(root, write_topology=False)
-    assert not (root / "meld_system.prmtop").exists()
-    assert not (root / "meld_system.pdb").exists()
+    assert not (root / "topology.prmtop").exists()
+    assert not (root / "topology.pdb").exists()
     assert "mddbmeta meld-prmtop" in next(f.message for f in p.findings if f.code == "MINE004")
 
 
 def test_foreign_file_is_not_overwritten(tmp_path: Path) -> None:
     root = _meld_with_system_dat(tmp_path)
-    (root / "meld_system.prmtop").write_text("someone else's file\n")
+    (root / "topology.prmtop").write_text("someone else's file\n")
     p = discover(root)
-    assert (root / "meld_system.prmtop").read_text() == "someone else's file\n"
+    assert (root / "topology.prmtop").read_text() == "someone else's file\n"
     assert any(f.code == "MELD006" and "not overwriting" in f.message for f in p.findings)
 
 

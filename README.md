@@ -264,21 +264,21 @@ A MELD run is one replica-exchange simulation. After the run, `extract_trajector
 
 ### The topology and starting structure: written from `Data/system.dat`
 
-MDDB-workflow needs a topology file (prmtop, psf, top or tpr), and MELD keeps none: it builds the system in memory and saves it only inside `Data/system.dat`. So before it scans a MELD run, mddbmeta writes **`meld_system.prmtop`** next to `Data/` from that file, and uses it as the run's topology (`input_topology_filepath`). Any other prmtop in the folder (e.g. one made with tleap before the run) is not used; `MELD005` names it.
+MDDB-workflow needs a topology file (prmtop, psf, top or tpr), and MELD keeps none: it builds the system in memory and saves it only inside `Data/system.dat`. So before it scans a MELD run, mddbmeta writes **`topology.prmtop`** next to `Data/` from that file, and uses it as the run's topology (`input_topology_filepath`). Any other prmtop in the folder (e.g. one made with tleap before the run) is not used; `MELD005` names it.
 
 - **Exact force field:** it holds the parameters MELD actually ran, including Grappa's bonded terms. A prmtop from tleap holds ff14SB's instead. Atom order is MELD's own, so it always matches the DCDs.
 - **Checked:** the bond, angle, torsion and nonbonded energies of the prmtop must match MELD's system at the saved coordinates, or nothing is written (`MELD006`, and discovery carries on with the files it finds).
-- **Written once:** later runs reuse it while it is newer than `system.dat`. mddbmeta never overwrites a `meld_system.prmtop` it did not write.
+- **Written once:** later runs reuse it while it is newer than `system.dat`. mddbmeta never overwrites a `topology.prmtop` it did not write.
 - **Implicit solvent:** the GB model (e.g. gbn2) is a run setting, not part of a prmtop, and the per-atom GB radii are not filled in yet. This does not matter to MDDB-workflow; do not re-run a GB simulation from this prmtop.
 - **No MELD needed, no code run:** `system.dat` is a pickle, and loading a pickle normally runs the code it names. mddbmeta reads it with a loader that imports nothing: every class becomes an empty placeholder holding the saved values. OpenMM rebuilds the system from the force-field XML stored inside, and ParmEd writes the prmtop.
 - **Older MELD versions** (`meld.system.system.System`) did not save an OpenMM system; they saved the AMBER prmtop and inpcrd the run was built from, as text. mddbmeta writes that prmtop out unchanged (only its title line marks it as mddbmeta's), so it is exactly what MELD ran, GB radii included; there is nothing to convert or check.
-- **Starting structure:** mddbmeta also writes **`meld_system.pdb`**, holding the coordinates MELD started from (its template coordinates), with the same atoms in the same order as the prmtop. It is used as `input_structure_filepath` (`MELD007` says so) unless the run folder itself holds a PDB with the right number of atoms (e.g. `protein_min.pdb`), which then wins. PDBs in subfolders (cluster centroids, extracted frames) never win over it. The same rules apply: written once, reused, never overwrites a file mddbmeta did not write (`MELD008`).
+- **Starting structure:** mddbmeta also writes **`topology.pdb`**, holding the coordinates MELD started from (its template coordinates), with the same atoms in the same order as the prmtop. It is used as `input_structure_filepath` (`MELD007` says so) unless the run folder itself holds a PDB with the right number of atoms (e.g. `protein_min.pdb`), which then wins. PDBs in subfolders (cluster centroids, extracted frames) never win over it. The same rules apply: written once, reused, never overwrites a file mddbmeta did not write (`MELD008`).
 - **Read-only discovery:** pass `--no-meld-prmtop` to write nothing; `MINE004` then suggests the command below.
 
 To write them by hand, or somewhere else:
 
 ```bash
-mddbmeta meld-prmtop runs/my_meld_run                  # meld_system.prmtop + meld_system.pdb in the run, prints the energy check
+mddbmeta meld-prmtop runs/my_meld_run                  # topology.prmtop + topology.pdb in the run, prints the energy check
 mddbmeta meld-prmtop runs/my_meld_run -o /tmp/x.prmtop # anywhere (the PDB becomes /tmp/x.pdb); --force to overwrite
 mddbmeta meld-prmtop runs/my_meld_run --no-pdb         # the prmtop only
 ```

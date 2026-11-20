@@ -43,11 +43,9 @@ DROPPABLE = {
     "MonteCarloMembraneBarostat": "barostat",
     "AndersenThermostat": "thermostat",
 }
-DEFAULT_NAME = (
-    "meld_system.prmtop"  # not topology.*: MDDB-workflow writes its own topology.* outputs
-)
+DEFAULT_NAME = "topology.prmtop"  # MDDB-workflow writes topology.json and structure.pdb: no clash
 TITLE = "mddbmeta meld-prmtop from Data/system.dat"
-PDB_NAME = "meld_system.pdb"  # the starting structure, for runs that have no PDB of their own
+PDB_NAME = "topology.pdb"  # the starting structure, for runs that have no PDB of their own
 PDB_MARK = "REMARK   1 mddbmeta: starting structure from Data/system.dat"
 ENERGY_TOL = 1e-3  # kJ/mol, absolute ...
 ENERGY_RTOL = 1e-6  # ... plus relative

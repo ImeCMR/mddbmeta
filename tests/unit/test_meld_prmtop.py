@@ -29,7 +29,7 @@ def _run_dir(
 def test_grappa_like_system_round_trips_exactly(tmp_path: Path) -> None:
     run = _run_dir(tmp_path)
     report = write_prmtop(run)
-    assert Path(report.output) == run / "meld_system.prmtop"
+    assert Path(report.output) == run / "topology.prmtop"
     assert report.checked and report.natom == 33
     assert {"bond", "angle", "torsion", "nonbonded"} <= set(report.energies)
     for meld_e, prm_e in report.energies.values():
@@ -56,7 +56,7 @@ def test_unsupported_force_is_refused(tmp_path: Path) -> None:
     run = _run_dir(tmp_path, system=system)
     with pytest.raises(MddbmetaError, match="CustomExternalForce"):
         write_prmtop(run)
-    assert not (run / "meld_system.prmtop").exists()
+    assert not (run / "topology.prmtop").exists()
 
 
 def test_without_positions_the_check_is_skipped(tmp_path: Path) -> None:
@@ -101,14 +101,14 @@ def test_cli_writes_the_starting_structure(
 ) -> None:
     run = _run_dir(tmp_path)
     assert main(["meld-prmtop", str(run)]) == 0
-    assert (run / "meld_system.prmtop").is_file() and (run / "meld_system.pdb").is_file()
+    assert (run / "topology.prmtop").is_file() and (run / "topology.pdb").is_file()
     assert "input_structure_filepath" in capsys.readouterr().out
-    assert app.PDBFile(str(run / "meld_system.pdb")).topology.getNumAtoms() == 33
+    assert app.PDBFile(str(run / "topology.pdb")).topology.getNumAtoms() == 33
     # an existing PDB stops the command before anything is written
-    (run / "meld_system.prmtop").unlink()
+    (run / "topology.prmtop").unlink()
     assert main(["meld-prmtop", str(run)]) == 1
     assert "--no-pdb" in capsys.readouterr().err
-    assert not (run / "meld_system.prmtop").exists()
+    assert not (run / "topology.prmtop").exists()
     assert main(["meld-prmtop", str(run), "--no-pdb"]) == 0
     # -o: the PDB goes next to the prmtop, with the same name
     assert main(["meld-prmtop", str(run), "-o", str(tmp_path / "x.prmtop")]) == 0
@@ -147,7 +147,7 @@ def test_older_meld_without_coordinates(tmp_path: Path, capsys: pytest.CaptureFi
     run = tmp_path / "run"
     write_legacy_system_dat(run, with_coordinates=False)
     assert main(["meld-prmtop", str(run)]) == 0
-    assert (run / "meld_system.prmtop").is_file() and not (run / "meld_system.pdb").exists()
+    assert (run / "topology.prmtop").is_file() and not (run / "topology.pdb").exists()
     assert "no PDB written" in capsys.readouterr().out
 
 
