@@ -129,6 +129,92 @@ def test_setup_timestep_rule_and_scaler(tmp_path: Path) -> None:
     assert temperature_of(lin, 0.5) == 350.0
 
 
+# the older MELD API (<= 0.5), as in real setup scripts: SystemBuilder + RunOptions attributes
+OLD_SETUP = """
+import numpy as np
+from meld import system
+import meld.system.montecarlo as mc
+
+N_REPLICAS = 3
+N_STEPS = 10
+BLOCK_SIZE = 5
+
+def setup_system():
+    p = system.ProteinMoleculeFromSequence(sequence)
+    b = system.SystemBuilder({builder_args})
+    s = b.build_system_from_molecules([p])
+    s.temperature_scaler = system.GeometricTemperatureScaler(0, 0.5, 300., 400.)
+    options = system.RunOptions()
+    options.implicit_solvent_model = 'gbNeck2'
+    options.use_big_timestep = {big}
+    options.use_bigger_timestep = True
+    options.cutoff = 1.8
+    options.timesteps = 11111
+    options.minimize_steps = 20000
+
+setup_system()
+"""
+
+AMBER_SETUP = """
+import meld
+from meld.system.builders.amber import AmberOptions, AmberSystemBuilder
+def setup_system():
+    options = AmberOptions({args})
+    builder = AmberSystemBuilder(options)
+"""
+
+
+def test_older_setup_syntax(tmp_path: Path) -> None:
+    (tmp_path / "a.py").write_text(
+        OLD_SETUP.format(builder_args='forcefield="ff14sbside"', big=False)
+    )
+    a = read_setup(tmp_path / "a.py")
+    assert (a.builder, a.legacy) == ("amber", True)
+    assert a.timestep_fs == (4.5, "use_bigger_timestep=True")
+    assert (a.timesteps, a.minimize_steps, a.n_replicas) == (11111, 20000, 3)
+    assert a.forcefield == ("ff14sbside", True) and a.leaprcs == ["leaprc.protein.ff14SBonlysc"]
+    assert a.implicit_solvent_model == ("gbNeck2", True)
+    # MELD tests use_big_timestep first
+    (tmp_path / "b.py").write_text(OLD_SETUP.format(builder_args="", big=True))
+    b = read_setup(tmp_path / "b.py")
+    assert b.timestep_fs[0] == 3.5
+    assert b.forcefield == ("ff14sbside", False)  # MELD's default, not stated
+    (tmp_path / "c.py").write_text(OLD_SETUP.format(
+        builder_args='"ff14sb", explicit_solvent=True, solvent_forcefield="opc"', big=False))  # fmt: skip
+    c = read_setup(tmp_path / "c.py")
+    assert c.leaprcs == ["leaprc.protein.ff14SB", "leaprc.water.opc"]
+    assert c.implicit_solvent_model == (None, True)
+
+
+def test_amber_options_forcefield(tmp_path: Path) -> None:
+    (tmp_path / "a.py").write_text(
+        AMBER_SETUP.format(args='forcefield="ff12sb", use_big_timestep=True')
+    )
+    a = read_setup(tmp_path / "a.py")
+    assert (a.builder, a.legacy, a.timestep_fs[0]) == ("amber", False, 3.5)
+    assert a.leaprcs == ["leaprc.ff12SB"] and a.implicit_solvent_model == ("gbNeck2", False)
+    (tmp_path / "b.py").write_text(AMBER_SETUP.format(args='solvation="explicit"'))
+    b = read_setup(tmp_path / "b.py")
+    assert b.leaprcs == ["leaprc.protein.ff14SBonlysc", "leaprc.water.tip3p"]
+
+
+def test_older_setup_in_a_run(tmp_path: Path) -> None:
+    root = make_meld_tree(tmp_path)
+    (root / "setup_meld.py").write_text(
+        OLD_SETUP.format(builder_args='forcefield="ff14sbside"', big=False)
+    )
+    p = discover(root)
+    m = p.mined
+    assert m["ff"].value == ["Amber ff14SBonlysc"]
+    assert m["timestep"].value == 4.5
+    ex = build_export(p)
+    meld = ex.inputs["metadditions"]["meld"]
+    assert (
+        meld["forcefield"] == "ff14sbside" and meld["implicit_solvent"] == "gbNeck2 (OpenMM GBn2)"
+    )
+    assert meld["exchange_interval_ps"] == pytest.approx(11111 * 4.5 / 1000)
+
+
 def test_remd_log_sessions(tmp_path: Path) -> None:
     p = tmp_path / "remd_000.log"
     p.write_text(_log("leader", [1, 7], True))

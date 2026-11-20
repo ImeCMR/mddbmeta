@@ -2,7 +2,10 @@
 
 * setup script (``setup_*.py`` importing ``meld``): read statically with :mod:`ast`;
   run constants, ``RunOptions``, the system-builder options (Grappa/Amber), the
-  temperature scaler and the replica-exchange adaptor.
+  temperature scaler and the replica-exchange adaptor. Both the current syntax
+  (``AmberOptions(forcefield=..., use_big_timestep=...)``) and the older one
+  (``SystemBuilder(forcefield=...)`` plus ``options = RunOptions(); options.X = ...``)
+  are understood.
 * ``Logs/remd_NNN.log``: MELD / OpenMM_Meld versions, ``launch_remd`` sessions
   (restarts), exchange progress and the "Finished ... successfully" line.
   Only the leader log (``... on leader``) carries progress; worker logs are
@@ -12,8 +15,8 @@
 * ``extract_trajectory`` calls in shell/slurm scripts: which DCDs are ladder
   positions (``extract_traj_dcd``) and which are walkers (``follow_dcd``).
 
-``Data/*.dat`` files are Python pickles and are deliberately never opened:
-unpickling can execute arbitrary code.
+``Data/*.dat`` files are Python pickles and are never unpickled here: that can execute
+arbitrary code (``Data/system.dat`` is read only by :mod:`.prmtop`'s inert loader).
 """
 
 from __future__ import annotations
@@ -29,8 +32,19 @@ from mddbmeta.engines.openmm.script import Quantity, _call_name, _Walker
 from mddbmeta.errors import MissingDependencyError
 from mddbmeta.io.safe import open_text
 
-# timestep MELD's system builders use (meld/system/builders/{grappa,amber}: _create_integrator)
+# timestep MELD's system builders use (meld/system/builders/{grappa,amber}: _create_integrator;
+# meld/system/openmm_runner/runner.py in MELD <= 0.5). use_big_timestep is tested first.
 MELD_TIMESTEP_FS = {"default": 2.0, "big": 3.5, "bigger": 4.5}
+# the Amber builder's forcefield names -> the leaprc tleap sources (same table in MELD 0.4 to 0.6)
+MELD_FORCEFIELDS = {
+    "ff12sb": "leaprc.ff12SB",
+    "ff14sb": "leaprc.protein.ff14SB",
+    "ff14sbside": "leaprc.protein.ff14SBonlysc",
+}
+MELD_DEFAULT_FORCEFIELD = "ff14sbside"  # SystemBuilder / AmberOptions default
+MELD_DEFAULT_IMPLICIT = "gbNeck2"  # RunOptions / AmberOptions default for implicit solvation
+# MELD's implicit_solvent_model names -> the OpenMM GB model they select
+MELD_GB_MODELS = {"obc": "OBC2", "gbneck": "GBn", "gbneck2": "GBn2"}
 
 
 # ---------------------------------------------------------------- setup script
@@ -47,20 +61,64 @@ class MeldSetup:
     minimize_steps: int | None = None
     builder: str | None = None  # "grappa" | "amber"
     builder_options: dict[str, Any] = field(default_factory=dict)
+    run_options: dict[str, Any] = field(default_factory=dict)  # RunOptions(...) / options.X = ...
+    legacy: bool = False  # the older SystemBuilder API (MELD <= 0.5)
     temperature_scaler: dict[str, Any] | None = None
     adaptor: str | None = None
     initial_alpha_rule: str | None = None  # e.g. "index / (N_REPLICAS - 1.0)"
 
     @property
+    def options(self) -> dict[str, Any]:
+        """Builder options over RunOptions: older MELD keeps timestep/solvent settings in RunOptions."""
+        return {**self.run_options, **self.builder_options}
+
+    @property
     def timestep_fs(self) -> tuple[float, str]:
-        o = self.builder_options
+        o = self.options
+        if o.get("use_big_timestep") is True:  # MELD checks this one first
+            return MELD_TIMESTEP_FS["big"], "use_big_timestep=True"
         if o.get("use_bigger_timestep") is True:
             return MELD_TIMESTEP_FS["bigger"], "use_bigger_timestep=True"
-        if o.get("use_big_timestep") is True:
-            return MELD_TIMESTEP_FS["big"], "use_big_timestep=True"
         return MELD_TIMESTEP_FS[
             "default"
         ], "use_big_timestep/use_bigger_timestep False (MELD default)"
+
+    @property
+    def explicit_solvent(self) -> bool:
+        o = self.options
+        if self.builder == "grappa":
+            return str(o.get("solvation_type", "")).lower() == "explicit"
+        return (
+            o.get("explicit_solvent") is True or str(o.get("solvation", "")).lower() == "explicit"
+        )
+
+    @property
+    def implicit_solvent_model(self) -> tuple[str | None, bool]:
+        """(MELD's implicit_solvent_model, stated in the script) for an Amber-built system;
+        (None, ...) for explicit solvent, vacuum or a Grappa build."""
+        if self.builder != "amber" or self.explicit_solvent:
+            return None, True
+        model = self.options.get("implicit_solvent_model")
+        stated = model is not None
+        model = model if stated else MELD_DEFAULT_IMPLICIT
+        return (None if str(model).lower() == "vacuum" else str(model)), stated
+
+    @property
+    def forcefield(self) -> tuple[str | None, bool]:
+        """(Amber builder forcefield name, stated in the script); MELD's default when not given."""
+        if self.builder != "amber":
+            return None, True
+        ff = self.builder_options.get("forcefield")
+        return (str(ff), True) if ff is not None else (MELD_DEFAULT_FORCEFIELD, False)
+
+    @property
+    def leaprcs(self) -> list[str]:
+        """The leaprc files MELD's Amber builder sourced in tleap for this setup."""
+        ff, _ = self.forcefield
+        out = [MELD_FORCEFIELDS.get(ff.lower(), f"leaprc.{ff}")] if ff else []
+        if self.builder == "amber" and self.explicit_solvent:
+            out.append(f"leaprc.water.{self.options.get('solvent_forcefield') or 'tip3p'}")
+        return out
 
 
 class _MeldWalker(_Walker):
@@ -69,6 +127,7 @@ class _MeldWalker(_Walker):
     def __init__(self, path: str):
         super().__init__(path)
         self.setup = MeldSetup(path=path)
+        self._run_option_vars: set[str] = set()  # names bound to RunOptions(...)
 
     def walk(self, body: list[ast.stmt]) -> None:
         for stmt in body:
@@ -84,9 +143,14 @@ class _MeldWalker(_Walker):
                         if v is not None:
                             self.setup.constants[t.id] = v
             if isinstance(stmt, ast.Assign):
+                if isinstance(stmt.value, ast.Call) and _call_name(stmt.value) == "RunOptions":
+                    self._run_option_vars |= {t.id for t in stmt.targets if isinstance(t, ast.Name)}
                 for t in stmt.targets:
                     if isinstance(t, ast.Attribute) and t.attr == "alpha":
                         self.setup.initial_alpha_rule = ast.unparse(stmt.value)
+                    elif (isinstance(t, ast.Attribute) and isinstance(t.value, ast.Name)
+                          and t.value.id in self._run_option_vars):  # fmt: skip
+                        self.setup.run_options[t.attr] = self.value(stmt.value)
             super().walk([stmt])
 
     def call(self, node: ast.Call) -> None:
@@ -97,15 +161,17 @@ class _MeldWalker(_Walker):
         if name == "RunOptions":
             s.timesteps = _int(self.value(kw.get("timesteps"))) or s.timesteps
             s.minimize_steps = _int(self.value(kw.get("minimize_steps"))) or s.minimize_steps
+            s.run_options.update(self._kwargs(kw))
+            if args:  # older MELD: RunOptions(solvation="implicit"|"explicit")
+                s.run_options.setdefault("solvation", self.value(args[0]))
         elif name in ("GrappaOptions", "AmberOptions"):
             s.builder = "grappa" if name == "GrappaOptions" else "amber"
-            opts: dict[str, Any] = {}
-            for key, v in kw.items():
-                if isinstance(v, (ast.List, ast.Tuple)):
-                    opts[key] = [self.value(e) for e in v.elts]
-                else:
-                    opts[key] = self.value(v)
-            s.builder_options = opts
+            s.builder_options = self._kwargs(kw)
+        elif name == "SystemBuilder":  # older MELD: SystemBuilder(forcefield="ff14sbside", ...)
+            s.builder, s.legacy = "amber", True
+            s.builder_options = self._kwargs(kw)
+            if args:
+                s.builder_options.setdefault("forcefield", self.value(args[0]))
         elif name in (
             "GeometricTemperatureScaler",
             "LinearTemperatureScaler",
@@ -138,6 +204,15 @@ class _MeldWalker(_Walker):
             s.block_size = s.block_size or _int(self.value(kw.get("block_size")))
         super().call(node)
 
+    def _kwargs(self, kw: dict[str, ast.expr]) -> dict[str, Any]:
+        opts: dict[str, Any] = {}
+        for key, v in kw.items():
+            if isinstance(v, (ast.List, ast.Tuple)):
+                opts[key] = [self.value(e) for e in v.elts]
+            else:
+                opts[key] = self.value(v)
+        return opts
+
 
 def _int(v: Any) -> int | None:
     return int(v) if isinstance(v, (int, float)) and not isinstance(v, bool) else None
@@ -162,6 +237,8 @@ def read_setup(path: str | Path) -> MeldSetup:
     w.walk(tree.body)
     s = w.setup
     c = s.constants
+    s.timesteps = s.timesteps or _int(s.run_options.get("timesteps"))
+    s.minimize_steps = s.minimize_steps or _int(s.run_options.get("minimize_steps"))
     s.n_replicas = s.n_replicas or _int(c.get("N_REPLICAS"))
     s.n_steps = s.n_steps or _int(c.get("N_STEPS"))
     s.block_size = s.block_size or _int(c.get("BLOCK_SIZE"))

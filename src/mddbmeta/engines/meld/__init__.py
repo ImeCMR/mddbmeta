@@ -21,6 +21,7 @@ from pathlib import Path
 from typing import Any
 
 from mddbmeta.engines.amber import prmtop as amber_prmtop
+from mddbmeta.engines.amber.leaplog import classify_leaprc
 from mddbmeta.engines.base import BuildEvidence, EngineAdapter, ParsedFile, SniffResult
 from mddbmeta.engines.meld import files
 from mddbmeta.engines.namd import files as namd_files
@@ -345,7 +346,8 @@ class MeldAdapter(EngineAdapter):
 
         s.minimization = st(False, "replica exchange")
         dt_fs, why = setup.timestep_fs
-        s.dt_ps = st(dt_fs / 1000.0, f"{setup.builder or 'system'} options: {why}", "ps", Confidence.DERIVED,
+        where = "RunOptions" if setup.legacy else f"{setup.builder or 'system'} options"
+        s.dt_ps = st(dt_fs / 1000.0, f"{where}: {why}", "ps", Confidence.DERIVED,
                      "derived: MELD builder timestep rule (2.0 / 3.5 / 4.5 fs)")  # fmt: skip
         if setup.timesteps:
             # one stored frame per exchange; an ensemble has no trajectory write interval (see metadditions)
@@ -357,13 +359,26 @@ class MeldAdapter(EngineAdapter):
             "none", "replica exchange (constant volume)", conf=Confidence.DERIVED, method="derived"
         )
         s.constant_pressure = s.barostat.with_value(False)
-        implicit = str(
-            setup.builder_options.get("solvation_type", "")
-        ).lower() == "implicit" or any(
-            "implicit" in str(x) for x in setup.builder_options.get("base_forcefield_files") or []
-        )
-        s.implicit_solvent = st(implicit, "solvation_type / base_forcefield_files")
-        s.periodic = st(not implicit, "solvation_type", conf=Confidence.DERIVED, method="derived")
+        if setup.builder == "amber":  # AmberOptions / older SystemBuilder + RunOptions
+            gb, stated_gb = setup.implicit_solvent_model
+            implicit = gb is not None
+            how = "implicit_solvent_model / solvation" + ("" if stated_gb else " (MELD default)")
+            s.implicit_solvent = st(implicit, how, conf=Confidence.EXACT if stated_gb else Confidence.DERIVED,
+                                    method="stated" if stated_gb else "derived: MELD default")  # fmt: skip
+            s.periodic = st(
+                setup.explicit_solvent, "solvation", conf=Confidence.DERIVED, method="derived"
+            )
+        else:
+            implicit = str(
+                setup.builder_options.get("solvation_type", "")
+            ).lower() == "implicit" or any(
+                "implicit" in str(x)
+                for x in setup.builder_options.get("base_forcefield_files") or []
+            )
+            s.implicit_solvent = st(implicit, "solvation_type / base_forcefield_files")
+            s.periodic = st(
+                not implicit, "solvation_type", conf=Confidence.DERIVED, method="derived"
+            )
         s.restraints = st(
             True, "MELD restraints (data-guided)", conf=Confidence.DERIVED, method="derived"
         )
@@ -455,6 +470,12 @@ class MeldAdapter(EngineAdapter):
             ]
             if implicit:
                 m["implicit_solvent"] = implicit[0]
+            ff, _ = setup.forcefield
+            if ff:
+                m["forcefield"] = ff
+            gb, _ = setup.implicit_solvent_model
+            if gb:
+                m["implicit_solvent"] = f"{gb} (OpenMM {files.MELD_GB_MODELS.get(gb.lower(), gb)})"
         if history is not None:
             m["stored_frames"] = history.n_frames
             m["ladder_settled_frame"] = max(history.settled_frame)
@@ -505,6 +526,13 @@ class MeldAdapter(EngineAdapter):
                 [str(x) for x in opts.get("base_forcefield_files") or []]
             )
             ffs += [f for f in base if f not in ffs]
+            for leaprc in pf.result.leaprcs:  # the Amber builder (current and older syntax)
+                kind = classify_leaprc(leaprc)
+                if kind is None:
+                    continue
+                bucket = ffs if kind[0] == "ff" else waters
+                if kind[1] not in bucket:
+                    bucket.append(kind[1])
             return [
                 BuildEvidence(source=pf.rel, force_fields=ffs, water_models=waters, linked=True)
             ]
