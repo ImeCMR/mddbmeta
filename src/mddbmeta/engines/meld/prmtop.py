@@ -129,6 +129,7 @@ class MeldSystem:
     system: Any  # openmm.System
     positions: Any | None  # numpy array (nm) or None
     source: str
+    prmtop_text: str | None = None  # older MELD: the AMBER prmtop it ran, saved verbatim
 
 
 def _qual(obj: Any) -> str:
@@ -162,6 +163,8 @@ def read_meld_system(path: str | Path) -> MeldSystem:
     spec = load_inert(path)
     if not _qual(spec).endswith(".System") or "meld" not in _qual(spec):
         raise MddbmetaError(f"{path}: not a MELD System pickle (found {_qual(spec) or type(spec)})")
+    if isinstance(vars(spec).get("_top_string"), str):
+        return _read_legacy(spec, path)
     otop = _find(spec, "openmm.app.topology.Topology")
     osys = next((v for v in vars(spec).values() if _system_xml(v)), None) if otop else None
     if otop is None or osys is None:
@@ -202,6 +205,55 @@ def read_meld_system(path: str | Path) -> MeldSystem:
             positions = value
             break
     return MeldSystem(topology=top, system=system, positions=positions, source=str(path))
+
+
+def _read_legacy(spec: Any, path: str | Path) -> MeldSystem:
+    """Older MELD (``meld.system.system.System``) keeps the AMBER prmtop and inpcrd it was built
+    from as text (``_top_string``, ``_mdcrd_string``) instead of an OpenMM system."""
+    import numpy as np
+    import openmm.app as app
+    import openmm.unit as unit
+
+    top_text = spec._top_string
+    crd_text = vars(spec).get("_mdcrd_string")
+    if "%FLAG POINTERS" not in top_text:
+        raise MddbmetaError(f"{path}: the saved topology is not an AMBER prmtop")
+    with tempfile.TemporaryDirectory(prefix="mddbmeta-") as tmp:
+        prm_path = os.path.join(tmp, "system.prmtop")
+        with open(prm_path, "w") as fh:
+            fh.write(top_text)
+        try:
+            prm = app.AmberPrmtopFile(prm_path)
+            system = prm.createSystem()
+        except Exception as exc:  # OpenMM raises plain Exception on bad prmtops
+            raise MddbmetaError(f"{path}: the saved prmtop cannot be read ({exc})") from exc
+        positions = None
+        if isinstance(crd_text, str):
+            crd_path = os.path.join(tmp, "system.inpcrd")
+            with open(crd_path, "w") as fh:
+                fh.write(crd_text)
+            try:  # inpcrd is in angstrom; positions here are nm like the newer layout
+                pos = app.AmberInpcrdFile(crd_path).getPositions(asNumpy=True)
+                positions = np.asarray(pos.value_in_unit(unit.nanometer))
+            except Exception:
+                positions = None
+    n = prm.topology.getNumAtoms()
+    if positions is not None and positions.shape != (n, 3):
+        positions = None
+    return MeldSystem(topology=prm.topology, system=system, positions=positions, source=str(path),
+                      prmtop_text=top_text)  # fmt: skip
+
+
+def _retitle(prmtop_text: str) -> str:
+    """The prmtop with its TITLE section set to the mddbmeta marker (everything else verbatim)."""
+    import re
+
+    new, n = re.subn(r"(%FLAG TITLE[^\n]*\n%FORMAT\(20a4\)[^\n]*\n)(?:(?!%FLAG)[^\n]*\n)*",
+                     lambda m: m.group(1) + TITLE.ljust(80) + "\n", prmtop_text, count=1)  # fmt: skip
+    if n:
+        return new
+    head, sep, rest = prmtop_text.partition("\n")  # no TITLE section: add one after %VERSION
+    return f"{head}{sep}%FLAG TITLE\n%FORMAT(20a4)\n{TITLE.ljust(80)}\n{rest}"
 
 
 def merge_forces(system: Any) -> tuple[Any, list[str]]:
@@ -348,6 +400,7 @@ class PrmtopReport:
     dropped: list[str]
     energies: dict[str, tuple[float, float]] = field(default_factory=dict)  # term -> (meld, prmtop)
     checked: bool = True
+    copied: bool = False  # older MELD: the prmtop MELD saved, written out as is
 
 
 def find_system_dat(target: Path) -> Path:
@@ -373,6 +426,8 @@ def write_prmtop(target: str | Path, output: str | Path | None = None, force: bo
         raise MddbmetaError(f"output directory {out.parent} does not exist")
 
     meld = read_meld_system(src)
+    if meld.prmtop_text is not None:
+        return _write_copy(meld, src, out)
     merged, dropped = merge_forces(meld.system)
     struct = parmed.openmm.load_topology(meld.topology, merged)
     if struct.urey_bradleys or struct.impropers or struct.rb_torsions:
@@ -412,6 +467,27 @@ def write_prmtop(target: str | Path, output: str | Path | None = None, force: bo
         if os.path.exists(tmp):
             os.unlink(tmp)
     return report
+
+
+def _write_copy(meld: MeldSystem, src: Path, out: Path) -> PrmtopReport:
+    """Older MELD: write out the prmtop it saved; only the TITLE changes (to mark it as ours)."""
+    import openmm.app as app
+
+    fd, tmp = tempfile.mkstemp(prefix=".mddbmeta-", suffix=".prmtop", dir=out.parent)
+    try:
+        with os.fdopen(fd, "w") as fh:
+            fh.write(_retitle(meld.prmtop_text or ""))
+        written = app.AmberPrmtopFile(tmp).topology
+        if written.getNumAtoms() != meld.topology.getNumAtoms():
+            raise MddbmetaError(f"{out}: the copied prmtop does not read back; not written")
+        _publish(tmp, out)
+    finally:
+        if os.path.exists(tmp):
+            os.unlink(tmp)
+    top = meld.topology
+    return PrmtopReport(output=str(out), source=str(src), natom=top.getNumAtoms(),
+                        nres=top.getNumResidues(), nbond=top.getNumBonds(), dropped=[],
+                        checked=False, copied=True)  # fmt: skip
 
 
 def _publish(tmp: str, out: Path) -> None:

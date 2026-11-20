@@ -303,7 +303,11 @@ def cmd_meld_prmtop(args: argparse.Namespace) -> int:
     print(
         f"  from {report.source}: {report.natom} atoms, {report.nres} residues, {report.nbond} bonds"
     )
-    if report.checked:
+    if report.copied:
+        print(
+            "  this MELD version saved the AMBER prmtop it ran; written out unchanged (title aside)"
+        )
+    elif report.checked:
         print("  check: energies at the saved coordinates (kJ/mol), MELD system vs prmtop")
         for term, (a, b) in report.energies.items():
             print(f"    {term:10s} {a:14.3f} {b:14.3f}")
@@ -313,8 +317,12 @@ def cmd_meld_prmtop(args: argparse.Namespace) -> int:
     if left:
         print(f"  not in the prmtop (no prmtop form): {', '.join(left)}")
     print("  use it in inputs.yaml as input_topology_filepath")
-    if not args.no_pdb and report.checked:  # checked: system.dat holds starting coordinates
-        written, natom = write_structure(args.target, pdb, force=True)  # checked above
+    if not args.no_pdb and (report.checked or report.copied):  # system.dat holds coordinates
+        try:
+            written, natom = write_structure(args.target, pdb, force=True)  # checked above
+        except MddbmetaError as exc:
+            print(f"  no PDB written: {exc}")
+            return EXIT_OK
         print(f"wrote {written}")
         print(f"  the starting structure ({natom} atoms, same atom order as the prmtop)")
         print(

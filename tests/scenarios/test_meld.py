@@ -15,7 +15,7 @@ from mddbmeta.export.mddb import build_export
 from mddbmeta.model import FileRole
 from mddbmeta.pipeline import discover
 from mddbmeta.validate.schema_lite import check_inputs
-from meldfiles import NATOM, PDB, write_system_dat
+from meldfiles import NATOM, PDB, write_legacy_system_dat, write_system_dat
 
 SETUP = """
 import meld
@@ -278,6 +278,17 @@ def test_foreign_structure_is_not_overwritten(tmp_path: Path) -> None:
     assert (root / "meld_system.pdb").read_text() == "REMARK someone else's file\nEND\n"
     assert any(f.code == "MELD008" and "not overwriting" in f.message for f in p.findings)
     assert p.mined["input_topology_filepath"].value == "meld_system.prmtop"
+
+
+def test_older_meld_layout_gives_topology_and_structure(tmp_path: Path) -> None:
+    root = _meld_with_system_dat(tmp_path)
+    write_legacy_system_dat(root)  # replaces the newer system.dat
+    p = discover(root)
+    assert p.mined["input_topology_filepath"].value == "meld_system.prmtop"
+    assert p.mined["input_structure_filepath"].value == "meld_system.pdb"
+    assert p.system is not None and p.system.natom == NATOM
+    assert "written out unchanged" in next(f.message for f in p.findings if f.code == "MELD005")
+    assert not [f for f in p.findings if f.code in ("MINE004", "MELD006", "MELD008")]
 
 
 def test_read_only_discovery_writes_nothing(tmp_path: Path) -> None:

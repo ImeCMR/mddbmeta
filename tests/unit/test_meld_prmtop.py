@@ -13,7 +13,7 @@ import pytest
 from mddbmeta.cli.main import main
 from mddbmeta.engines.meld.prmtop import load_inert, read_meld_system, write_prmtop
 from mddbmeta.errors import MddbmetaError
-from meldfiles import PDB, write_system_dat
+from meldfiles import AMBER, PDB, write_legacy_system_dat, write_system_dat
 
 PROTEIN_L = os.environ.get("MDDBMETA_MELD_RUN")
 
@@ -113,6 +113,42 @@ def test_cli_writes_the_starting_structure(
     # -o: the PDB goes next to the prmtop, with the same name
     assert main(["meld-prmtop", str(run), "-o", str(tmp_path / "x.prmtop")]) == 0
     assert (tmp_path / "x.pdb").is_file()
+
+
+def test_older_meld_prmtop_is_copied(tmp_path: Path) -> None:
+    run = tmp_path / "run"
+    write_legacy_system_dat(run)
+    report = write_prmtop(run)
+    assert report.copied and report.natom == 33 and not report.energies
+    original = (AMBER / "ala_ala.prmtop").read_text().splitlines()
+    written = Path(report.output).read_text().splitlines()
+    i = written.index("%FLAG TITLE".ljust(80)) + 2
+    assert written[i].strip() == "mddbmeta meld-prmtop from Data/system.dat"
+    # everything but the title line is MELD's prmtop, unchanged
+    assert written[:i] + written[i + 1 :] == [ln for j, ln in enumerate(original) if j != i]
+
+
+def test_older_meld_structure_is_in_angstrom(tmp_path: Path) -> None:
+    import numpy as np
+    import openmm.unit as unit
+
+    from mddbmeta.engines.meld.prmtop import write_structure
+
+    run = tmp_path / "run"
+    write_legacy_system_dat(run)
+    out, natom = write_structure(run)
+    assert natom == 33
+    got = app.PDBFile(str(out)).getPositions(asNumpy=True).value_in_unit(unit.angstrom)
+    want = app.AmberInpcrdFile(str(AMBER / "ala_ala.inpcrd")).getPositions(asNumpy=True)
+    assert np.allclose(got, want.value_in_unit(unit.angstrom), atol=1e-3)
+
+
+def test_older_meld_without_coordinates(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
+    run = tmp_path / "run"
+    write_legacy_system_dat(run, with_coordinates=False)
+    assert main(["meld-prmtop", str(run)]) == 0
+    assert (run / "meld_system.prmtop").is_file() and not (run / "meld_system.pdb").exists()
+    assert "no PDB written" in capsys.readouterr().out
 
 
 @pytest.mark.skipif(not PROTEIN_L, reason="set MDDBMETA_MELD_RUN to a real MELD run directory")

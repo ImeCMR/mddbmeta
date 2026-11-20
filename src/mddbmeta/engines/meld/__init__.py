@@ -204,7 +204,9 @@ class MeldAdapter(EngineAdapter):
             msg = (
                 f"topology {topology.rel} {'written' if report else 'reused'} from Data/system.dat"
             )
-            if report is not None and report.checked:
+            if report is not None and report.copied:
+                msg += " (the prmtop this MELD version saved, written out unchanged)"
+            elif report is not None and report.checked:
                 msg += " (bond/angle/torsion/nonbonded energies match the MELD system)"
             if others:
                 msg += f"; not used: {', '.join(others)}"

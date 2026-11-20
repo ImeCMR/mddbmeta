@@ -14,6 +14,9 @@ import openmm
 import openmm.app as app
 
 PDB = Path(__file__).resolve().parent / "data" / "openmm_real" / "prep" / "ala_ala.pdb"
+AMBER = (
+    Path(__file__).resolve().parent / "data" / "openmm_amber"
+)  # ala_ala.prmtop/.inpcrd, 33 atoms
 NATOM = 33
 
 
@@ -40,9 +43,9 @@ def grappa_like(system: openmm.System) -> openmm.System:
 
 
 @contextlib.contextmanager
-def _fake_meld_modules() -> Iterator[type]:
-    """A module tree named like MELD's, so an object pickles as meld.system.meld_system.System."""
-    mod = types.ModuleType("meld.system.meld_system")
+def _fake_meld_modules(module: str = "meld.system.meld_system") -> Iterator[type]:
+    """A module tree named like MELD's, so an object pickles as ``<module>.System``."""
+    mod = types.ModuleType(module)
 
     class System:
         pass
@@ -81,6 +84,22 @@ def write_system_dat(
         if with_positions:
             spec._template_coordinates = np.array(pdb.getPositions(asNumpy=True)._value)
         spec.builder_info = {"builder": "grappa"}
+        with open(path, "wb") as fh:
+            pickle.dump(spec, fh)
+    return path
+
+
+def write_legacy_system_dat(run: Path, with_coordinates: bool = True) -> Path:
+    """``run/Data/system.dat`` as older MELD saved it: ``meld.system.system.System`` holding the
+    AMBER prmtop and inpcrd as text (and the coordinates in angstrom), no OpenMM system."""
+    path = run / "Data" / "system.dat"
+    path.parent.mkdir(parents=True, exist_ok=True)
+    crd = (AMBER / "ala_ala.inpcrd").read_text()
+    with _fake_meld_modules("meld.system.system") as cls:
+        spec = cls()
+        spec._top_string = (AMBER / "ala_ala.prmtop").read_text()
+        spec._mdcrd_string = crd if with_coordinates else None
+        spec._n_atoms = NATOM
         with open(path, "wb") as fh:
             pickle.dump(spec, fh)
     return path
