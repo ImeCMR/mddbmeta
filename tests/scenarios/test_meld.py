@@ -176,6 +176,14 @@ def test_unfinished_run(tmp_path: Path) -> None:
     assert step.runtime.completed.value is False
 
 
+def test_missing_topology_points_to_meld_prmtop(tmp_path: Path) -> None:
+    root = make_meld_tree(tmp_path)
+    (root / "system.prmtop").unlink()
+    p = discover(root)
+    hints = [f for f in p.findings if f.code == "MINE004"]
+    assert hints and "mddbmeta meld-prmtop" in hints[0].message
+
+
 @pytest.mark.external_data
 def test_real_meld_run() -> None:
     """MDDBMETA_EXTERNAL_DATA=/path/to/protein_G_3GB1 pytest -m external_data"""

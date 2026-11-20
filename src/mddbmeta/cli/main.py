@@ -117,6 +117,15 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--json", action="store_true")
     _discovery_args(p)
 
+    p = sub.add_parser(
+        "meld-prmtop",
+        parents=[common],
+        help="write an AMBER prmtop from a MELD run's Data/system.dat (exact, Grappa included)",
+    )
+    p.add_argument("target", help="MELD run directory (or its Data/system.dat)")
+    p.add_argument("-o", "--output", help="prmtop to write (default: <run>/topology.prmtop)")
+    p.add_argument("--force", action="store_true", help="overwrite an existing output file")
+
     sub.add_parser(
         "template-path", help="print the Jinja2 inputs template for `mwf dataset inputs -it`"
     )
@@ -259,6 +268,27 @@ def cmd_reconcile(args: argparse.Namespace) -> int:
     return EXIT_CONFLICT if has_conflicts(items, findings) else EXIT_OK
 
 
+def cmd_meld_prmtop(args: argparse.Namespace) -> int:
+    from mddbmeta.engines.meld.prmtop import DROPPABLE, write_prmtop
+
+    report = write_prmtop(args.target, args.output, force=args.force)
+    print(f"wrote {report.output}")
+    print(
+        f"  from {report.source}: {report.natom} atoms, {report.nres} residues, {report.nbond} bonds"
+    )
+    if report.checked:
+        print("  check: energies at the saved coordinates (kJ/mol), MELD system vs prmtop")
+        for term, (a, b) in report.energies.items():
+            print(f"    {term:10s} {a:14.3f} {b:14.3f}")
+    else:
+        print("  WARNING: no saved coordinates in system.dat; the energy check was skipped")
+    left = sorted({DROPPABLE[d] for d in report.dropped})
+    if left:
+        print(f"  not in the prmtop (no prmtop form): {', '.join(left)}")
+    print("  use it in inputs.yaml as input_topology_filepath")
+    return EXIT_OK
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = build_parser()
     args = parser.parse_args(argv)
@@ -275,6 +305,7 @@ def main(argv: list[str] | None = None) -> int:
             "validate": cmd_validate,
             "export": cmd_export,
             "reconcile": cmd_reconcile,
+            "meld-prmtop": cmd_meld_prmtop,
         }[args.command]
         return handler(args)
     except MddbmetaError as exc:
