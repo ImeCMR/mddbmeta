@@ -318,6 +318,23 @@ def test_unfinished_run(tmp_path: Path) -> None:
     p = discover(make_meld_tree(tmp_path, finished=False))
     step = next(iter(p.steps.values()))
     assert step.runtime.completed.value is False
+    # one finding for the run, not one per ladder position
+    from mddbmeta.validate import run_all
+
+    cmp = [f for f in run_all(p) if f.code == "CMP002"]
+    assert len(cmp) == 1 and "3 runs logged in Logs/remd_000.log" in cmp[0].message
+    assert "stopped at exchange 10 of 10" in cmp[0].message
+
+
+def test_unreadable_data_store_leaves_temps_blank(tmp_path: Path) -> None:
+    root = make_meld_tree(tmp_path)
+    for b in (root / "Data" / "Blocks").iterdir():
+        b.write_bytes(b"CDF\x01" + b"\0" * 8)  # still looks like a block, but cannot be read
+    p = discover(root)
+    load = [f for f in p.findings if f.code == "LOAD001"]
+    assert len(load) == 1 and "left blank" in load[0].message
+    assert not [f for f in p.findings if f.code == "MELD001"]
+    assert all("temp" not in f or not f["temp"].is_known for f in p.md_mined.values())
 
 
 def test_missing_topology_points_to_meld_prmtop(tmp_path: Path) -> None:

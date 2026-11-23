@@ -193,9 +193,13 @@ class MeldAdapter(EngineAdapter):
             try:
                 history = files.read_alpha_history(blocks)
             except (MissingDependencyError, OSError, ValueError, KeyError) as exc:
-                findings.append(
-                    finding("LOAD001", f"MELD data store not read: {exc}", paths=["Data/Blocks"])
-                )
+                findings.append(finding(
+                    "LOAD001",
+                    f"MELD data store not read ({exc}): each ladder position's temperature is left blank, "
+                    "because the ladder may have adapted away from the setup script's. If the folder was "
+                    "moved or renamed while mddbmeta ran, run it again",
+                    paths=["Data/Blocks"],
+                ))  # fmt: skip
 
         tops = [f for f in parsed if f.format in ("prmtop", "psf") and f.ok]
         # the prmtop written from Data/system.dat is what MELD ran; any other is a stand-in
@@ -430,9 +434,7 @@ class MeldAdapter(EngineAdapter):
                 method="derived: final alpha through the temperature scaler", confidence=Confidence.DERIVED, note=note,
             )  # fmt: skip
             step.raw["meld_alpha_final"] = history.last[idx]
-        else:
-            findings.append(finding("MELD001", f"{step.id}: data store not read; temperature from the initial ladder",
-                                    subject=step.id))  # fmt: skip
+        # no data store: temp stays blank (LOAD001 says why), never the initial ladder's guess
 
     def _runtime(self, leader: ParsedFile | None, setup: files.MeldSetup | None) -> StepRuntime:
         rt = StepRuntime()
