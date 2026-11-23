@@ -7,6 +7,7 @@ import shutil
 import struct
 from pathlib import Path
 
+import numpy as np
 import pytest
 
 from amberfiles import protein_residues, write_prmtop
@@ -73,7 +74,9 @@ def _dcd(path: Path, natom: int, frames: int) -> None:
     path.write_bytes(rec(head) + rec(title) + rec(struct.pack("<i", natom)) + body)
 
 
-def _blocks(d: Path, alphas: list[list[float]]) -> None:
+def _blocks(d: Path, alphas: list[list[float]], growing: bool = True) -> None:
+    """MELD's data store: 5 frames per block. As MELD writes it (``growing``), every block's time
+    axis runs from frame 0 to its own end and only its own columns hold data."""
     netCDF4 = pytest.importorskip("netCDF4")
     d.mkdir(parents=True)
     n = len(alphas[0])
@@ -84,7 +87,9 @@ def _blocks(d: Path, alphas: list[list[float]]) -> None:
             ds.createDimension("timesteps", None)
             v = ds.createVariable("alphas", "f8", ("n_replicas", "timesteps"))
             for j, col in enumerate(chunk):
-                v[:, j] = col
+                v[:, (b + j) if growing else j] = col
+            if growing and len(chunk) < 5:  # the last block is allocated in full, partly written
+                v[:, b + 4] = np.ma.masked
 
 
 def make_meld_tree(root: Path, big: bool = False, finished: bool = True) -> Path:
@@ -268,6 +273,19 @@ def test_uneven_ladder_dcds_are_flagged(tmp_path: Path) -> None:
     p = discover(root)
     msg = next(f.message for f in p.findings if f.code == "MELD009")
     assert "1 of 3" in msg and "down to 4" in msg
+
+
+def test_data_store_layouts_read_the_same(tmp_path: Path) -> None:
+    from mddbmeta.engines.meld.files import read_alpha_history
+
+    alphas = [[0.0, 0.5 if f < 6 else 0.25, 1.0] for f in range(11)]
+    _blocks(tmp_path / "grow", alphas, growing=True)
+    _blocks(tmp_path / "flat", alphas, growing=False)
+    g = read_alpha_history(sorted((tmp_path / "grow").iterdir()))
+    f = read_alpha_history(sorted((tmp_path / "flat").iterdir()))
+    assert (g.n_frames, g.last, g.settled_frame) == (f.n_frames, f.last, f.settled_frame)
+    assert (g.n_frames, g.last, g.settled_frame) == (11, [0.0, 0.25, 1.0], [0, 6, 0])
+    assert (g.minimum[1], g.maximum[1]) == (0.25, 0.5)
 
 
 def test_remd_log_sessions(tmp_path: Path) -> None:

@@ -394,39 +394,49 @@ class AlphaHistory:
     settled_frame: list[int]  # last frame at which each position's alpha still changed (> tol)
 
 
+def _block_alphas(ds: Any, start: int):
+    """Columns ``start:`` of a block's ``alphas`` as floats (NaN for frames never written)."""
+    import numpy as np
+
+    v = ds.variables["alphas"]
+    return np.ma.filled(np.ma.asarray(v[:, start:], dtype=float), np.nan)
+
+
 def read_alpha_history(blocks: list[Path], tol: float = 1e-6) -> AlphaHistory:
-    """Scan ``alphas[n_replicas, timesteps]`` of every block, in block order; nothing else is read."""
+    """Scan ``alphas[n_replicas, timesteps]`` of every block, in block order; nothing else is read.
+
+    MELD's blocks share one growing time axis: block k's ``alphas`` runs from frame 0 to the end
+    of block k, and only the columns after the previous block's end hold its frames (the rest are
+    empty). Each block is read from there, so the cost per block stays constant; reading the whole
+    variable grows with the run and, with one-column HDF5 chunks, took most of an hour on long runs."""
     try:
         import netCDF4
+        import numpy as np
     except ImportError as exc:  # MELD blocks are NetCDF4/HDF5: scipy cannot read them
         raise MissingDependencyError("Reading MELD data-store blocks", "netcdf") from exc
-    first = last = mn = mx = None
-    settled: list[int] = []
-    frames = 0
-    for path in sorted(blocks, key=lambda p: int(_BLOCK.match(p.name).group(1))):  # type: ignore[union-attr]
+    ordered = sorted(blocks, key=lambda p: int(_BLOCK.match(p.name).group(1)))  # type: ignore[union-attr]
+    arrays = []
+    previous = 0  # length of the previous block's time axis
+    for path in ordered:
         with netCDF4.Dataset(str(path), "r") as ds:
-            a = ds.variables["alphas"][:].tolist()  # [n_replicas][timesteps]
-        n, t = len(a), len(a[0]) if a else 0
-        for j in range(t):
-            raw = [a[i][j] for i in range(n)]
-            if any(v is None for v in raw):
-                continue  # masked: a frame the store allocated but never wrote (end of the last block)
-            col = [float(v) for v in raw]
-            if first is None:
-                first, last, mn, mx = list(col), list(col), list(col), list(col)
-                settled = [0] * n
-            else:
-                for i in range(n):
-                    if abs(col[i] - last[i]) > tol:
-                        settled[i] = frames
-                    mn[i] = min(mn[i], col[i])
-                    mx[i] = max(mx[i], col[i])
-                last = col
-            frames += 1
-    if first is None:
+            length = ds.variables["alphas"].shape[1]
+            start = previous if 0 < previous < length else 0  # axis not growing: read it all
+            arrays.append(_block_alphas(ds, start))
+        previous = length
+    arrays = [a for a in arrays if a.ndim == 2 and a.shape[1]]
+    if not arrays:
         raise ValueError("no frames in the MELD data store")
-    return AlphaHistory(n_replicas=len(first), n_frames=frames, first=first, last=last, minimum=mn,
-                        maximum=mx, blocks=len(blocks), settled_frame=settled)  # fmt: skip
+    a = np.concatenate(arrays, axis=1)  # [n_replicas, all stored frames]
+    a = a[:, ~np.isnan(a).any(axis=0)]  # frames the store allocated but never wrote
+    if a.shape[1] == 0:
+        raise ValueError("no frames in the MELD data store")
+    n, frames = a.shape
+    # settled_frame[i]: the last frame at which position i's alpha changed (by more than tol)
+    changed = np.abs(np.diff(a, axis=1)) > tol  # True at k: frame k + 1 differs from frame k
+    settled = [int(np.flatnonzero(row)[-1]) + 1 if row.any() else 0 for row in changed]
+    return AlphaHistory(n_replicas=n, n_frames=frames, first=a[:, 0].tolist(), last=a[:, -1].tolist(),
+                        minimum=a.min(axis=1).tolist(), maximum=a.max(axis=1).tolist(), blocks=len(blocks),
+                        settled_frame=settled)  # fmt: skip
 
 
 # ---------------------------------------------------------------- extraction scripts

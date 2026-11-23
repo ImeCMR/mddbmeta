@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import fnmatch
 import os
+import re
 from dataclasses import dataclass, field
 from pathlib import Path
 
@@ -27,6 +28,14 @@ class ScanResult:
     load_errors: list[FileLoadError] = field(default_factory=list)
     skipped: list[str] = field(default_factory=list)
     engines: dict[str, list[str]] = field(default_factory=dict)  # engine -> claimed files
+
+
+# numbered series (block_000001.nc, block_000002.nc, ...): once SERIES_TRUST members in a row
+# were sniffed the same way from their own bytes, the rest are classified by name without opening
+# them -- MELD's data store has thousands of blocks, and opening each costs ~0.1 s on network
+# filesystems. Each file is still parsed (and so read, where its adapter reads it) on its own.
+_SERIES = re.compile(r"^(.*?)(\d+)(\.[A-Za-z0-9]+)?$")
+SERIES_TRUST = 3
 
 
 def _is_mwf_dir(path: Path) -> bool:
@@ -64,6 +73,9 @@ def scan(
             and depth < max_depth
         )
         mwf_here = _is_mwf_dir(current)
+        series: dict[
+            tuple[str, str], tuple[bytes, str, int]
+        ] = {}  # key -> (head, adapter, agreeing)
         for name in sorted(filenames):
             if name.startswith("."):
                 continue
@@ -77,12 +89,26 @@ def scan(
             path = current / name
             if not path.is_file():
                 continue
-            head = read_head(path)
-            if isinstance(head, FileLoadError):
-                err = FileLoadError("unknown", rel, head.error_type, head.detail)
-                result.load_errors.append(err)
-                continue
-            claim = sniff_all(path, head, adapters)
+            m = _SERIES.match(name)
+            key = (m.group(1), m.group(3) or "") if m else None
+            known = series.get(key) if key else None
+            if known is not None and known[2] >= SERIES_TRUST:
+                claim = sniff_all(path, known[0], adapters)  # classified like the members before it
+            else:
+                head = read_head(path)
+                if isinstance(head, FileLoadError):
+                    err = FileLoadError("unknown", rel, head.error_type, head.detail)
+                    result.load_errors.append(err)
+                    continue
+                claim = sniff_all(path, head, adapters)
+                if key is not None:
+                    name_of = claim[0].name if claim else ""
+                    agree = (
+                        known[2] + 1
+                        if known and known[1] == name_of and claim
+                        else (1 if claim else 0)
+                    )
+                    series[key] = (head, name_of, agree)
             if claim is None:
                 continue
             adapter, sniffed = claim
