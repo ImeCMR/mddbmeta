@@ -549,13 +549,15 @@ class MeldAdapter(EngineAdapter):
                 [str(x) for x in opts.get("base_forcefield_files") or []]
             )
             ffs += [f for f in base if f not in ffs]
-            for leaprc in pf.result.leaprcs:  # the Amber builder (current and older syntax)
+            # the Amber builder (current and older syntax): ff is the name the setup script gives
+            # MELD (e.g. "ff14sbside", which MELD loads as leaprc.protein.ff14SBonlysc)
+            ff_name, _ = pf.result.forcefield
+            if ff_name and ff_name not in ffs:
+                ffs.append(ff_name)
+            for leaprc in pf.result.leaprcs:
                 kind = classify_leaprc(leaprc)
-                if kind is None:
-                    continue
-                bucket = ffs if kind[0] == "ff" else waters
-                if kind[1] not in bucket:
-                    bucket.append(kind[1])
+                if kind is not None and kind[0] == "water" and kind[1] not in waters:
+                    waters.append(kind[1])
             return [
                 BuildEvidence(source=pf.rel, force_fields=ffs, water_models=waters, linked=True)
             ]

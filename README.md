@@ -246,7 +246,7 @@ A MELD run is one replica-exchange simulation. After the run, `extract_trajector
 - **The setup script**, read statically and never executed:
   - `N_REPLICAS` / `N_STEPS`;
   - `RunOptions(timesteps=...)`, the MD steps per exchange;
-  - `GrappaOptions` / `AmberOptions`, which give the force fields, the solvation, and the timestep. MELD's builders use 2.0 fs, or 3.5 fs with `use_big_timestep`, or 4.5 fs with `use_bigger_timestep` (if both are set, `use_big_timestep` wins, as in MELD). The Amber builder's `forcefield` names map to the leaprc MELD sources: `ff14sbside` (the default) is `Amber ff14SBonlysc`, `ff14sb` is `Amber ff14SB`, `ff12sb` is `Amber ff12SB`;
+  - `GrappaOptions` / `AmberOptions`, which give the force fields, the solvation, and the timestep. MELD's builders use 2.0 fs, or 3.5 fs with `use_big_timestep`, or 4.5 fs with `use_bigger_timestep` (if both are set, `use_big_timestep` wins, as in MELD). `ff` is the Amber builder's `forcefield` name as the script gives it (e.g. `ff14sbside`, MELD's default when none is given). MELD loads `ff14sbside` as `leaprc.protein.ff14SBonlysc`, `ff14sb` as `leaprc.protein.ff14SB` and `ff12sb` as `leaprc.ff12SB`;
   - the older syntax (MELD 0.5 and earlier), `SystemBuilder(forcefield=...)` and `options = RunOptions(); options.use_bigger_timestep = True; options.timesteps = ...`, which gives the same fields;
   - the temperature scaler and the adaptor.
 - **The leader log** `Logs/remd_000.log`: versions, completion, and restarts (`MELD004`).

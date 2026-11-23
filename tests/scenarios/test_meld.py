@@ -210,7 +210,7 @@ def test_older_setup_in_a_run(tmp_path: Path) -> None:
     )
     p = discover(root)
     m = p.mined
-    assert m["ff"].value == ["Amber ff14SBonlysc"]
+    assert m["ff"].value == ["ff14sbside"]  # the name the setup script gives MELD
     assert m["timestep"].value == 4.5
     ex = build_export(p)
     meld = ex.inputs["metadditions"]["meld"]
