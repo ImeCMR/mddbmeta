@@ -24,6 +24,7 @@ from mddbmeta.engines.amber import prmtop as amber_prmtop
 from mddbmeta.engines.amber.leaplog import classify_leaprc
 from mddbmeta.engines.base import BuildEvidence, EngineAdapter, ParsedFile, SniffResult
 from mddbmeta.engines.meld import files
+from mddbmeta.engines.meld.prmtop import PDB_MARK, is_generated
 from mddbmeta.engines.namd import files as namd_files
 from mddbmeta.engines.openmm import classify_forcefield_files
 from mddbmeta.errors import MddbmetaError, MissingDependencyError
@@ -63,6 +64,7 @@ class MeldAdapter(EngineAdapter):
         self.generated: dict[str, Any] = {}
         # rel path of a starting-structure PDB written from system.dat -> written (False: reused)
         self.structures: dict[str, bool] = {}
+        self._root: Path | None = None
 
     # ---------------------------------------------------------------- prepare
     def prepare(self, root: Path, max_depth: int, exclude: list[str]) -> list[Finding]:
@@ -146,6 +148,7 @@ class MeldAdapter(EngineAdapter):
 
     # ------------------------------------------------------------ build steps
     def build_steps(self, root: Path, parsed: list[ParsedFile]) -> tuple[list[Step], list[Finding]]:
+        self._root = root
         findings: list[Finding] = []
         self._by_rel = {f.rel: f for f in parsed}
         steps: list[Step] = []
@@ -266,6 +269,19 @@ class MeldAdapter(EngineAdapter):
                 f"{history.n_frames}); per-MD temp is the final value",
                 data={"positions": [s.raw["meld_replica"] for s in drifting], "settled_frame": settled},
             ))  # fmt: skip
+        lengths = {s.raw["meld_replica"]: int(s.trajectory.n_frames.value)
+                   for s in steps if s.trajectory.n_frames.is_known}  # fmt: skip
+        if len(set(lengths.values())) > 1:
+            longest = max(lengths.values())
+            short = {r: n for r, n in lengths.items() if n < longest}
+            findings.append(finding(
+                "MELD009",
+                f"{len(short)} of {len(lengths)} ladder DCDs are shorter than the longest ({longest} frames), "
+                f"down to {min(short.values())}: their extract_traj_dcd runs probably stopped early; "
+                "re-extract them before uploading",
+                paths=[s.files[FileRole.TRAJECTORY].path for s in steps if s.raw["meld_replica"] in short][:5],
+                data={"frames": lengths, "longest": longest},
+            ))  # fmt: skip
         if history is not None and ladder:
             extracted = {
                 int(s.trajectory.n_frames.value) for s in steps if s.trajectory.n_frames.is_known
@@ -317,6 +333,10 @@ class MeldAdapter(EngineAdapter):
         def rank(f: ParsedFile) -> tuple[int, bool, str]:
             if f.rel in self.structures:
                 tier = 1
+            elif self._root is not None and is_generated(self._root / f.rel, PDB_MARK):
+                tier = (
+                    3  # a starting structure mddbmeta wrote earlier under another name: never used
+                )
             elif posixpath.dirname(f.rel) == run_dir:
                 tier = 0
             else:
@@ -324,6 +344,7 @@ class MeldAdapter(EngineAdapter):
             return tier, "min" not in f.rel, f.rel
 
         pdbs.sort(key=rank)
+        pdbs = [f for f in pdbs if rank(f)[0] < 3]
         for f in pdbs:
             if natom is None or f.result.natom == natom:
                 return f.rel

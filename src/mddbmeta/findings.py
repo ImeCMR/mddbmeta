@@ -80,6 +80,11 @@ CATALOG: dict[str, Code] = {
             "MELD007", S.INFO, "Starting structure written from the MELD system (Data/system.dat)"
         ),
         Code("MELD008", S.WARNING, "No starting structure could be written from Data/system.dat"),
+        Code(
+            "MELD009",
+            S.WARNING,
+            "Extracted ladder DCDs have different lengths (extraction incomplete)",
+        ),
         # Formats / schema / loading / engines
         Code("FMT001", S.ERROR, "Trajectory parts of one MD have different formats"),
         Code("FMT002", S.WARNING, "File format not supported by MDDB-workflow"),

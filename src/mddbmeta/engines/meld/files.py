@@ -6,7 +6,8 @@
   (``AmberOptions(forcefield=..., use_big_timestep=...)``) and the older one
   (``SystemBuilder(forcefield=...)`` plus ``options = RunOptions(); options.X = ...``)
   are understood.
-* ``Logs/remd_NNN.log``: MELD / OpenMM_Meld versions, ``launch_remd`` sessions
+* ``Logs/remd_NNN.log`` (or the single ``remd.log`` of MELD <= 0.4, all ranks interleaved):
+  MELD / OpenMM_Meld versions, ``launch_remd`` sessions
   (restarts), exchange progress and the "Finished ... successfully" line.
   Only the leader log (``... on leader``) carries progress; worker logs are
   read up to their banner.
@@ -274,12 +275,23 @@ def temperature_of(scaler: dict[str, Any] | None, alpha: float) -> float | None:
 
 # ---------------------------------------------------------------- logs
 
-_LAUNCH = re.compile(r"^Launching replica exchange on (leader|worker)")
+_LAUNCH = re.compile(r"^Launching replica exchange on (leader|worker|follower)")
 _VERSION = re.compile(r"^Meld version is (\S+)")
 _OMM = re.compile(r"^OpenMM_Meld version is (\S+)")
 _STEP = re.compile(r"^Running replica exchange step (\d+) of (\d+)\.")
 _FINISHED = re.compile(r"^Finished (\d+) steps of replica exchange successfully")
 _PLATFORM = re.compile(r"^Using (\w+) platform\.")
+# MELD <= 0.4 writes one remd.log for all ranks, each line prefixed with
+# "host:rank date time LEVEL logger: ", e.g. "c44a-s9.ufhpc:000 2021-12-22 11:00:54 INFO meld.remd.launch: "
+_PREFIX = re.compile(r"^\S+:\d+ \d{4}-\d\d-\d\d \d\d:\d\d:\d\d \w+ [\w.]+: ")
+# the only lines read; everything else (MELD's DEBUG timing lines, the bulk of a log) is skipped unparsed
+_KEYS = (
+    b"Launching replica",
+    b"version is",
+    b"Running replica exchange step",
+    b"Finished",
+    b"platform",
+)
 
 
 @dataclass
@@ -296,16 +308,31 @@ class RemdLog:
 
 
 def read_remd_log(path: str | Path) -> RemdLog:
+    """Read a MELD log: ``Logs/remd_NNN.log`` (one file per rank, MELD >= 0.5) or the single
+    ``remd.log`` of MELD <= 0.4, which interleaves every rank behind a ``host:rank date ...`` prefix.
+    A combined log counts as the leader's when any line of it comes from the leader."""
     log = RemdLog(path=str(path))
-    new_session = False
-    with open_text(path) as fh:
-        for line in fh:
+    new_session = True  # the first exchange step seen opens a session, launch line or not
+    combined = False
+    with open(path, "rb") as fh:
+        for raw in fh:
+            if not any(k in raw for k in _KEYS):
+                continue
+            line = raw.decode("utf-8", errors="replace").rstrip("\r\n")
+            m = _PREFIX.match(line)
+            if m:
+                combined = True
+                line = line[m.end() :]
             m = _LAUNCH.match(line)
             if m:
-                log.role = log.role or m.group(1)
-                new_session = True
-                if m.group(1) == "worker" and log.meld_version:
-                    break  # workers carry no progress: stop after the banner
+                role = "worker" if m.group(1) == "follower" else m.group(1)
+                if role == "leader":
+                    log.role = "leader"
+                    new_session = True
+                elif log.role is None:
+                    log.role = "worker"
+                if role == "worker" and log.meld_version and not combined:
+                    break  # a worker's own log carries no progress: stop after the banner
                 continue
             if log.meld_version is None:
                 m = _VERSION.match(line)
@@ -316,12 +343,13 @@ def read_remd_log(path: str | Path) -> RemdLog:
                 m = _OMM.match(line)
                 if m:
                     log.openmm_meld_version = m.group(1)
-                    if log.role == "worker":
+                    if log.role == "worker" and not combined:
                         break
                     continue
             if line.startswith("Running replica exchange step"):
                 m = _STEP.match(line)
                 if m:
+                    log.role = "leader"  # only the leader logs exchange steps
                     step = int(m.group(1))
                     if new_session:
                         log.sessions.append(step)

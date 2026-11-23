@@ -215,6 +215,61 @@ def test_older_setup_in_a_run(tmp_path: Path) -> None:
     assert meld["exchange_interval_ps"] == pytest.approx(11111 * 4.5 / 1000)
 
 
+def _combined_log() -> str:
+    """MELD <= 0.4: one remd.log, every rank interleaved behind a host:rank date time prefix."""
+
+    def ln(rank: str, level: str, logger: str, msg: str) -> str:
+        return f"c45a-s21.ufhpc:{rank} 2021-12-19 18:12:32 {level} {logger}: {msg}"
+
+    out = []
+    for r in ("022", "014"):
+        out += [ln(r, "INFO", "meld.remd.launch", "Launching replica exchange on follower"),
+                ln(r, "INFO", "meld.remd.launch", "Meld version is 0.4.14"),
+                ln(r, "INFO", "meld.remd.launch", "OpenMM_Meld version is 7.5.0.dev-Unknown")]  # fmt: skip
+    out += [
+        ln("000", "INFO", "meld.remd.leader", f"Running replica exchange step {i} of 40.")
+        for i in (5, 6, 7)
+    ]
+    out += [ln("022", "DEBUG", "meld.comm", "receive_alpha_from_leader took 293.820 ms")] * 50
+    out += [ln("000", "INFO", "meld.remd.launch", "Launching replica exchange on leader"),
+            ln("000", "INFO", "meld.remd.launch", "Meld version is 0.4.14")]  # fmt: skip
+    out += [
+        ln("000", "INFO", "meld.remd.leader", f"Running replica exchange step {i} of 40.")
+        for i in (7, 8)
+    ]
+    return "\n".join(out) + "\n"
+
+
+def test_combined_remd_log(tmp_path: Path) -> None:
+    p = tmp_path / "remd.log"
+    p.write_text(_combined_log())
+    log = read_remd_log(p)
+    assert (log.role, log.meld_version, log.openmm_meld_version) == (
+        "leader",
+        "0.4.14",
+        "7.5.0.dev-Unknown",
+    )
+    assert log.sessions == [5, 7] and (log.last_step, log.max_steps) == (8, 40)
+    assert log.finished_steps is None
+
+
+def test_combined_remd_log_in_a_run(tmp_path: Path) -> None:
+    root = make_meld_tree(tmp_path)
+    shutil.rmtree(root / "Logs")
+    (root / "remd.log").write_text(_combined_log())
+    p = discover(root)
+    assert (p.mined["program"].value, p.mined["version"].value) == ("MELD", "0.4.14")
+
+
+def test_uneven_ladder_dcds_are_flagged(tmp_path: Path) -> None:
+    root = make_meld_tree(tmp_path)
+    natom = sum(len(a) for _, a in protein_residues(4))
+    _dcd(root / "trajectories" / "trajectory.01.dcd", natom, 4)  # an extraction that stopped early
+    p = discover(root)
+    msg = next(f.message for f in p.findings if f.code == "MELD009")
+    assert "1 of 3" in msg and "down to 4" in msg
+
+
 def test_remd_log_sessions(tmp_path: Path) -> None:
     p = tmp_path / "remd_000.log"
     p.write_text(_log("leader", [1, 7], True))
@@ -345,6 +400,16 @@ def test_starting_structure_beats_analysis_pdbs_in_subfolders(tmp_path: Path) ->
     root = _meld_with_system_dat(tmp_path)
     (root / "cluster").mkdir()
     shutil.copy(PDB, root / "cluster" / "best_rmsd.pdb")  # a clustering result, same atom count
+    p = discover(root)
+    assert p.mined["input_structure_filepath"].value == "topology.pdb"
+
+
+def test_a_pdb_mddbmeta_wrote_under_an_old_name_is_ignored(tmp_path: Path) -> None:
+    root = _meld_with_system_dat(tmp_path)
+    discover(root)
+    shutil.copy(
+        root / "topology.pdb", root / "meld_system.pdb"
+    )  # left over from an earlier version
     p = discover(root)
     assert p.mined["input_structure_filepath"].value == "topology.pdb"
 
