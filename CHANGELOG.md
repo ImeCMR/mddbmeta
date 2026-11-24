@@ -1,5 +1,27 @@
 # Changelog
 
+## Unreleased: MELD topology
+
+- `mddbmeta meld-prmtop <run>` writes an AMBER prmtop (`topology.prmtop`) from a MELD run's `Data/system.dat`:
+  - read with an inert unpickler that imports nothing (no MELD needed, no code from the file runs);
+  - Grappa's split bonded forces are merged and its zeroed ff14SB torsions dropped, so the prmtop holds the simulated parameters;
+  - implicit solvent is left out (no prmtop form); any other force a prmtop cannot hold is refused;
+  - the prmtop's bond/angle/torsion/nonbonded energies must match the MELD system at the saved coordinates, or nothing is written.
+- `openmm` and `parmed` (and `numpy`) are now dependencies.
+- `MINE004` on a MELD run without a topology points to `mddbmeta meld-prmtop`.
+- Discovery writes `topology.prmtop` from each MELD run's `Data/system.dat` before scanning, and MELD runs use it as their topology (other prmtops are listed as not used). Reused while newer than `system.dat`; never overwrites a file it did not write; `--no-meld-prmtop` keeps discovery read-only. New findings: `MELD005` (topology written/reused), `MELD006` (could not be written).
+- MELD setup scripts in the older syntax (`SystemBuilder(forcefield=...)`, `options = RunOptions(); options.use_bigger_timestep = True`, ...) are read: force field, implicit-solvent model, timestep, steps per exchange and minimisation steps. Before, these were missed and the timestep fell back to 2 fs. `AmberOptions(forcefield=...)` now gives `ff` too, written as the script's name (e.g. `ff14sbside`); tleap logs that source `leaprc.protein.ff14SBonlysc` report `Amber ff14SBonlysc`, and when both `use_big_timestep` and `use_bigger_timestep` are set the timestep is 3.5 fs, as in MELD.
+- MELD <= 0.4's single `remd.log` (all ranks interleaved behind a `host:rank date time LEVEL logger:` prefix) is read: program, MELD and OpenMM_Meld versions, restarts and progress. Before, only `Logs/remd_NNN.log` was recognised, so program and version were left unstated.
+- Much faster discovery of long MELD runs (1kh0: 2470 blocks, 246900 frames, from about 50 minutes to a few):
+  - the data store is read one block's own frames at a time. MELD's blocks share one growing time axis, so reading each block's whole `alphas` variable cost more with every block, and the per-value Python loop is now numpy;
+  - a PDB is read up to its first `END`/`ENDMDL`: MELD's multi-frame `Data/trajectory.pdb` (13.9 GB on 1kh0) was read to the end;
+  - in a numbered series of files (`block_000001.nc`, ...), once three members were identified from their own bytes, the rest are identified by name without opening them.
+- Fewer, clearer warnings: runs that share one log and did not finish (every replica of a REMD job) give one `CMP002` with the log's reason (e.g. "stopped at exchange 246992 of 640000") instead of one per run; an unreadable MELD data store gives one `LOAD001` saying temperatures are left blank, instead of one `MELD001` per replica that wrongly said the initial ladder was used.
+- `MELD009` (warning): ladder DCDs of different lengths, i.e. `extract_traj_dcd` runs that stopped early.
+- A starting-structure PDB that mddbmeta wrote under an older name (`meld_system.pdb`) is never taken for the run's own PDB.
+- MELD runs with no PDB of their own get their starting structure too: `topology.pdb` is written from the template coordinates in `Data/system.dat` (same atoms and order as the prmtop) and used as `input_structure_filepath` when no PDB in the run matches the topology. `meld-prmtop` writes it as well (`--no-pdb` to skip). Older MELD `system.dat` files (`meld.system.system.System`, which keep the AMBER prmtop and inpcrd as text) are supported too: the saved prmtop is written out unchanged apart from its title, and the starting structure comes from the saved inpcrd (angstrom). New findings: `MELD007` (structure written/reused and used), `MELD008` (could not be written).
+- Adapters get a `prepare(root, max_depth, exclude)` hook that runs before the scan.
+
 ## Unreleased: M6 MELD
 
 - MELD adapter:

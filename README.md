@@ -44,6 +44,8 @@ python -m venv .venv
 
 Elsewhere, `python -m pip install -e ".[yaml,netcdf]"` in any Python ≥ 3.10 environment. scipy also works as the NetCDF backend for AMBER files, but MELD data stores need netCDF4.
 
+OpenMM and ParmEd are installed with it, from pip. They are used only to write the topology of MELD runs (below); mddbmeta never runs a simulation.
+
 ## Quickstart
 
 ```bash
@@ -244,13 +246,14 @@ A MELD run is one replica-exchange simulation. After the run, `extract_trajector
 - **The setup script**, read statically and never executed:
   - `N_REPLICAS` / `N_STEPS`;
   - `RunOptions(timesteps=...)`, the MD steps per exchange;
-  - `GrappaOptions` / `AmberOptions`, which give the force fields, the solvation, and the timestep. MELD's builders use 2.0 fs, or 3.5 fs with `use_big_timestep`, or 4.5 fs with `use_bigger_timestep`;
+  - `GrappaOptions` / `AmberOptions`, which give the force fields, the solvation, and the timestep. MELD's builders use 2.0 fs, or 3.5 fs with `use_big_timestep`, or 4.5 fs with `use_bigger_timestep` (if both are set, `use_big_timestep` wins, as in MELD). `ff` is the Amber builder's `forcefield` name as the script gives it (e.g. `ff14sbside`, MELD's default when none is given). MELD loads `ff14sbside` as `leaprc.protein.ff14SBonlysc`, `ff14sb` as `leaprc.protein.ff14SB` and `ff12sb` as `leaprc.ff12SB`;
+  - the older syntax (MELD 0.5 and earlier), `SystemBuilder(forcefield=...)` and `options = RunOptions(); options.use_bigger_timestep = True; options.timesteps = ...`, which gives the same fields;
   - the temperature scaler and the adaptor.
 - **The leader log** `Logs/remd_000.log`: versions, completion, and restarts (`MELD004`).
 - **The data store's `alphas`** in `Data/Blocks/block_*.nc`, which records every ladder position's alpha at every frame. Each MD's `temp` is its final alpha put through the scaler.
   - If an adaptor moved the ladder, `MELD001` lists the positions whose temperature changed and the frame where it settled.
   - Extracted and stored frame counts are compared (`MELD002`).
-- **Never unpickled:** `Data/*.dat` files are pickles and are never opened.
+- **Pickles:** of `Data/*.dat`, only `system.dat` is read, to write the topology (below), and no code from it is run.
 - **`metadditions.meld`** records the replica count, exchanges, MD steps and interval per exchange, the ladder, the adaptor, the Grappa model and the solvent model.
 
 **About temperatures:** each MD's `temp` is the temperature of its ladder position at the end of the run. If an adaptor such as `EqualAcceptanceAdaptor` moved the ladder, this differs from the initial ladder in your setup script. `MELD001` tells you when that happened, and the sidecar JSON holds each position's full temperature range. Positions above the scaler's `alpha_max` share its top temperature and differ only in restraint strength.
@@ -258,6 +261,27 @@ A MELD run is one replica-exchange simulation. After the run, `extract_trajector
 **Reading the data store**
 - It needs the `netcdf` extra (netCDF4), because MELD blocks are HDF5.
 - It is the slow part, reading one small variable per block: about 2–3 minutes for 400 blocks on /orange.
+
+### The topology and starting structure: written from `Data/system.dat`
+
+MDDB-workflow needs a topology file (prmtop, psf, top or tpr), and MELD keeps none: it builds the system in memory and saves it only inside `Data/system.dat`. So before it scans a MELD run, mddbmeta writes **`topology.prmtop`** next to `Data/` from that file, and uses it as the run's topology (`input_topology_filepath`). Any other prmtop in the folder (e.g. one made with tleap before the run) is not used; `MELD005` names it.
+
+- **Exact force field:** it holds the parameters MELD actually ran, including Grappa's bonded terms. A prmtop from tleap holds ff14SB's instead. Atom order is MELD's own, so it always matches the DCDs.
+- **Checked:** the bond, angle, torsion and nonbonded energies of the prmtop must match MELD's system at the saved coordinates, or nothing is written (`MELD006`, and discovery carries on with the files it finds).
+- **Written once:** later runs reuse it while it is newer than `system.dat`. mddbmeta never overwrites a `topology.prmtop` it did not write.
+- **Implicit solvent:** the GB model (e.g. gbn2) is a run setting, not part of a prmtop, and the per-atom GB radii are not filled in yet. This does not matter to MDDB-workflow; do not re-run a GB simulation from this prmtop.
+- **No MELD needed, no code run:** `system.dat` is a pickle, and loading a pickle normally runs the code it names. mddbmeta reads it with a loader that imports nothing: every class becomes an empty placeholder holding the saved values. OpenMM rebuilds the system from the force-field XML stored inside, and ParmEd writes the prmtop.
+- **Older MELD versions** (`meld.system.system.System`) did not save an OpenMM system; they saved the AMBER prmtop and inpcrd the run was built from, as text. mddbmeta writes that prmtop out unchanged (only its title line marks it as mddbmeta's), so it is exactly what MELD ran, GB radii included; there is nothing to convert or check.
+- **Starting structure:** mddbmeta also writes **`topology.pdb`**, holding the coordinates MELD started from (its template coordinates), with the same atoms in the same order as the prmtop. It is used as `input_structure_filepath` (`MELD007` says so) unless the run folder itself holds a PDB with the right number of atoms (e.g. `protein_min.pdb`), which then wins. PDBs in subfolders (cluster centroids, extracted frames) never win over it. The same rules apply: written once, reused, never overwrites a file mddbmeta did not write (`MELD008`).
+- **Read-only discovery:** pass `--no-meld-prmtop` to write nothing; `MINE004` then suggests the command below.
+
+To write them by hand, or somewhere else:
+
+```bash
+mddbmeta meld-prmtop runs/my_meld_run                  # topology.prmtop + topology.pdb in the run, prints the energy check
+mddbmeta meld-prmtop runs/my_meld_run -o /tmp/x.prmtop # anywhere (the PDB becomes /tmp/x.pdb); --force to overwrite
+mddbmeta meld-prmtop runs/my_meld_run --no-pdb         # the prmtop only
+```
 
 ### How MDDB-workflow merges the parts (`MRG001`, `ORDER002`)
 

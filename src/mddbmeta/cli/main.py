@@ -39,6 +39,13 @@ def _discovery_args(p: argparse.ArgumentParser) -> None:
     p.add_argument(
         "--max-depth", type=int, default=None, help="directory depth to scan (default 4)"
     )
+    p.add_argument(
+        "--no-meld-prmtop",
+        dest="write_topology",
+        action="store_false",
+        default=None,
+        help="MELD: do not write topology.prmtop from Data/system.dat (read-only discovery)",
+    )
 
 
 def _options(args: argparse.Namespace) -> dict[str, Any]:
@@ -47,6 +54,7 @@ def _options(args: argparse.Namespace) -> dict[str, Any]:
         "engine": args.engine,
         "exclude": args.exclude,
         "max_depth": args.max_depth,
+        "write_topology": args.write_topology,
     }
 
 
@@ -116,6 +124,18 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--project", help="project directory (default: the inputs file's directory)")
     p.add_argument("--json", action="store_true")
     _discovery_args(p)
+
+    p = sub.add_parser(
+        "meld-prmtop",
+        parents=[common],
+        help="write an AMBER prmtop (exact, Grappa included) and the starting-structure PDB "
+        "from a MELD run's Data/system.dat",
+    )
+    p.add_argument("target", help="MELD run directory (or its Data/system.dat)")
+    p.add_argument("-o", "--output", help="prmtop to write (default: <run>/topology.prmtop); "
+                   "the PDB goes next to it, with the same name and .pdb")  # fmt: skip
+    p.add_argument("--no-pdb", action="store_true", help="do not write the starting-structure PDB")
+    p.add_argument("--force", action="store_true", help="overwrite existing output files")
 
     sub.add_parser(
         "template-path", help="print the Jinja2 inputs template for `mwf dataset inputs -it`"
@@ -259,6 +279,60 @@ def cmd_reconcile(args: argparse.Namespace) -> int:
     return EXIT_CONFLICT if has_conflicts(items, findings) else EXIT_OK
 
 
+def cmd_meld_prmtop(args: argparse.Namespace) -> int:
+    from mddbmeta.engines.meld.prmtop import (
+        DROPPABLE,
+        PDB_NAME,
+        find_system_dat,
+        write_prmtop,
+        write_structure,
+    )
+
+    pdb = None
+    if not args.no_pdb:
+        if args.output:
+            pdb = Path(args.output).expanduser().with_suffix(".pdb")
+        else:
+            src = find_system_dat(Path(args.target).expanduser())
+            run_dir = src.parent.parent if src.parent.name == "Data" else src.parent
+            pdb = run_dir / PDB_NAME
+        if pdb.exists() and not args.force:  # check before anything is written
+            raise MddbmetaError(f"{pdb} exists; pass --force to overwrite it (or --no-pdb)")
+    report = write_prmtop(args.target, args.output, force=args.force)
+    print(f"wrote {report.output}")
+    print(
+        f"  from {report.source}: {report.natom} atoms, {report.nres} residues, {report.nbond} bonds"
+    )
+    if report.copied:
+        print(
+            "  this MELD version saved the AMBER prmtop it ran; written out unchanged (title aside)"
+        )
+    elif report.checked:
+        print("  check: energies at the saved coordinates (kJ/mol), MELD system vs prmtop")
+        for term, (a, b) in report.energies.items():
+            print(f"    {term:10s} {a:14.3f} {b:14.3f}")
+    else:
+        print("  WARNING: no saved coordinates in system.dat; the energy check was skipped")
+    left = sorted({DROPPABLE[d] for d in report.dropped})
+    if left:
+        print(f"  not in the prmtop (no prmtop form): {', '.join(left)}")
+    print("  use it in inputs.yaml as input_topology_filepath")
+    if not args.no_pdb and (report.checked or report.copied):  # system.dat holds coordinates
+        try:
+            written, natom = write_structure(args.target, pdb, force=True)  # checked above
+        except MddbmetaError as exc:
+            print(f"  no PDB written: {exc}")
+            return EXIT_OK
+        print(f"wrote {written}")
+        print(f"  the starting structure ({natom} atoms, same atom order as the prmtop)")
+        print(
+            "  use it in inputs.yaml as input_structure_filepath if the run has no PDB of its own"
+        )
+    elif not args.no_pdb:
+        print("  no starting coordinates in system.dat: no PDB written")
+    return EXIT_OK
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = build_parser()
     args = parser.parse_args(argv)
@@ -275,6 +349,7 @@ def main(argv: list[str] | None = None) -> int:
             "validate": cmd_validate,
             "export": cmd_export,
             "reconcile": cmd_reconcile,
+            "meld-prmtop": cmd_meld_prmtop,
         }[args.command]
         return handler(args)
     except MddbmetaError as exc:

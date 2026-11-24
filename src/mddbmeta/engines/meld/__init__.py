@@ -14,17 +14,20 @@ through the script's temperature scaler. Walkers are recorded, not exported.
 
 from __future__ import annotations
 
+import os
 import posixpath
 import re
 from pathlib import Path
 from typing import Any
 
 from mddbmeta.engines.amber import prmtop as amber_prmtop
+from mddbmeta.engines.amber.leaplog import classify_leaprc
 from mddbmeta.engines.base import BuildEvidence, EngineAdapter, ParsedFile, SniffResult
 from mddbmeta.engines.meld import files
+from mddbmeta.engines.meld.prmtop import PDB_MARK, is_generated
 from mddbmeta.engines.namd import files as namd_files
 from mddbmeta.engines.openmm import classify_forcefield_files
-from mddbmeta.errors import MissingDependencyError
+from mddbmeta.errors import MddbmetaError, MissingDependencyError
 from mddbmeta.findings import finding
 from mddbmeta.model import (
     FileKind,
@@ -57,6 +60,57 @@ class MeldAdapter(EngineAdapter):
     def __init__(self) -> None:
         self._by_rel: dict[str, ParsedFile] = {}
         self.walkers: list[str] = []
+        # rel path of a prmtop written from system.dat -> report (None: reused)
+        self.generated: dict[str, Any] = {}
+        # rel path of a starting-structure PDB written from system.dat -> written (False: reused)
+        self.structures: dict[str, bool] = {}
+        self._root: Path | None = None
+
+    # ---------------------------------------------------------------- prepare
+    def prepare(self, root: Path, max_depth: int, exclude: list[str]) -> list[Finding]:
+        """Write each MELD run's topology and starting structure from its Data/system.dat,
+        before the scan."""
+        from mddbmeta.discovery.scan import SKIP_DIRS, _excluded
+        from mddbmeta.engines.meld.prmtop import ensure_prmtop, ensure_structure
+
+        findings: list[Finding] = []
+        found: list[Path] = []
+        seen: set[str] = set()
+        for dirpath, dirnames, filenames in os.walk(root, followlinks=True):  # as the scan walks
+            real = os.path.realpath(dirpath)
+            if real in seen:
+                dirnames[:] = []
+                continue
+            seen.add(real)
+            rel_dir = Path(dirpath).relative_to(root).as_posix()
+            depth = 0 if rel_dir == "." else len(rel_dir.split("/"))
+            dirnames[:] = sorted(
+                d for d in dirnames
+                if depth < max_depth and not d.startswith(".") and d not in SKIP_DIRS
+                and not _excluded(d if rel_dir == "." else f"{rel_dir}/{d}", exclude)
+            )  # fmt: skip
+            if Path(dirpath).name == "Data" and "system.dat" in filenames:
+                found.append(Path(dirpath) / "system.dat")
+        for dat in found:
+            rel = dat.relative_to(root).as_posix()
+            if _excluded(rel, exclude):
+                continue
+            try:
+                out, report = ensure_prmtop(dat)
+                self.generated[out.relative_to(root).as_posix()] = report
+            except MddbmetaError as exc:
+                findings.append(
+                    finding("MELD006", f"no topology written from {rel}: {exc}", paths=[rel])
+                )
+            try:  # used only when the run has no PDB of its own (see _structure)
+                pdb, written = ensure_structure(dat)
+                self.structures[pdb.relative_to(root).as_posix()] = written
+            except MddbmetaError as exc:
+                findings.append(
+                    finding("MELD008", f"no starting structure written from {rel}: {exc}",
+                            paths=[rel])
+                )  # fmt: skip
+        return findings
 
     # ------------------------------------------------------------------ sniff
     def sniff(self, path: Path, head: bytes) -> SniffResult | None:
@@ -94,6 +148,7 @@ class MeldAdapter(EngineAdapter):
 
     # ------------------------------------------------------------ build steps
     def build_steps(self, root: Path, parsed: list[ParsedFile]) -> tuple[list[Step], list[Finding]]:
+        self._root = root
         findings: list[Finding] = []
         self._by_rel = {f.rel: f for f in parsed}
         steps: list[Step] = []
@@ -138,12 +193,42 @@ class MeldAdapter(EngineAdapter):
             try:
                 history = files.read_alpha_history(blocks)
             except (MissingDependencyError, OSError, ValueError, KeyError) as exc:
-                findings.append(
-                    finding("LOAD001", f"MELD data store not read: {exc}", paths=["Data/Blocks"])
-                )
+                findings.append(finding(
+                    "LOAD001",
+                    f"MELD data store not read ({exc}): each ladder position's temperature is left blank, "
+                    "because the ladder may have adapted away from the setup script's. If the folder was "
+                    "moved or renamed while mddbmeta ran, run it again",
+                    paths=["Data/Blocks"],
+                ))  # fmt: skip
 
-        topology = next((f for f in parsed if f.format in ("prmtop", "psf") and f.ok), None)
+        tops = [f for f in parsed if f.format in ("prmtop", "psf") and f.ok]
+        # the prmtop written from Data/system.dat is what MELD ran; any other is a stand-in
+        topology = next((f for f in tops if f.rel in self.generated), None) or (
+            tops[0] if tops else None
+        )
+        if topology is not None and topology.rel in self.generated:
+            report = self.generated[topology.rel]
+            others = [f.rel for f in tops if f is not topology]
+            msg = (
+                f"topology {topology.rel} {'written' if report else 'reused'} from Data/system.dat"
+            )
+            if report is not None and report.copied:
+                msg += " (the prmtop this MELD version saved, written out unchanged)"
+            elif report is not None and report.checked:
+                msg += " (bond/angle/torsion/nonbonded energies match the MELD system)"
+            if others:
+                msg += f"; not used: {', '.join(others)}"
+            findings.append(finding("MELD005", msg, paths=[topology.rel, *others],
+                                    data={"energies": report.energies if report else None}))  # fmt: skip
         structure = self._structure(parsed, topology)
+        if structure in self.structures:
+            how = "written" if self.structures[structure] else "reused"
+            findings.append(finding(
+                "MELD007",
+                f"starting structure {structure} {how} from Data/system.dat (no PDB in the run folder "
+                "matching the topology)",
+                paths=[structure],
+            ))  # fmt: skip
         scaler = setup.temperature_scaler if setup else None
         for f in ladder:
             m = _INDEX.search(posixpath.basename(f.rel))
@@ -188,6 +273,19 @@ class MeldAdapter(EngineAdapter):
                 f"{history.n_frames}); per-MD temp is the final value",
                 data={"positions": [s.raw["meld_replica"] for s in drifting], "settled_frame": settled},
             ))  # fmt: skip
+        lengths = {s.raw["meld_replica"]: int(s.trajectory.n_frames.value)
+                   for s in steps if s.trajectory.n_frames.is_known}  # fmt: skip
+        if len(set(lengths.values())) > 1:
+            longest = max(lengths.values())
+            short = {r: n for r, n in lengths.items() if n < longest}
+            findings.append(finding(
+                "MELD009",
+                f"{len(short)} of {len(lengths)} ladder DCDs are shorter than the longest ({longest} frames), "
+                f"down to {min(short.values())}: their extract_traj_dcd runs probably stopped early; "
+                "re-extract them before uploading",
+                paths=[s.files[FileRole.TRAJECTORY].path for s in steps if s.raw["meld_replica"] in short][:5],
+                data={"frames": lengths, "longest": longest},
+            ))  # fmt: skip
         if history is not None and ladder:
             extracted = {
                 int(s.trajectory.n_frames.value) for s in steps if s.trajectory.n_frames.is_known
@@ -231,7 +329,26 @@ class MeldAdapter(EngineAdapter):
             else None
         )
         pdbs = [f for f in parsed if f.format == "pdb" and f.ok]
-        pdbs.sort(key=lambda f: (posixpath.dirname(f.rel) != "", "min" not in f.rel, f.rel))
+        # 1. a PDB of the run's own in the run folder (e.g. protein_min.pdb); 2. the starting
+        # structure written from Data/system.dat; 3. PDBs in subfolders, which are mostly
+        # analysis outputs (cluster centroids, extracted frames)
+        run_dir = posixpath.dirname(next(iter(self.structures), ""))
+
+        def rank(f: ParsedFile) -> tuple[int, bool, str]:
+            if f.rel in self.structures:
+                tier = 1
+            elif self._root is not None and is_generated(self._root / f.rel, PDB_MARK):
+                tier = (
+                    3  # a starting structure mddbmeta wrote earlier under another name: never used
+                )
+            elif posixpath.dirname(f.rel) == run_dir:
+                tier = 0
+            else:
+                tier = 2
+            return tier, "min" not in f.rel, f.rel
+
+        pdbs.sort(key=rank)
+        pdbs = [f for f in pdbs if rank(f)[0] < 3]
         for f in pdbs:
             if natom is None or f.result.natom == natom:
                 return f.rel
@@ -254,7 +371,8 @@ class MeldAdapter(EngineAdapter):
 
         s.minimization = st(False, "replica exchange")
         dt_fs, why = setup.timestep_fs
-        s.dt_ps = st(dt_fs / 1000.0, f"{setup.builder or 'system'} options: {why}", "ps", Confidence.DERIVED,
+        where = "RunOptions" if setup.legacy else f"{setup.builder or 'system'} options"
+        s.dt_ps = st(dt_fs / 1000.0, f"{where}: {why}", "ps", Confidence.DERIVED,
                      "derived: MELD builder timestep rule (2.0 / 3.5 / 4.5 fs)")  # fmt: skip
         if setup.timesteps:
             # one stored frame per exchange; an ensemble has no trajectory write interval (see metadditions)
@@ -266,13 +384,26 @@ class MeldAdapter(EngineAdapter):
             "none", "replica exchange (constant volume)", conf=Confidence.DERIVED, method="derived"
         )
         s.constant_pressure = s.barostat.with_value(False)
-        implicit = str(
-            setup.builder_options.get("solvation_type", "")
-        ).lower() == "implicit" or any(
-            "implicit" in str(x) for x in setup.builder_options.get("base_forcefield_files") or []
-        )
-        s.implicit_solvent = st(implicit, "solvation_type / base_forcefield_files")
-        s.periodic = st(not implicit, "solvation_type", conf=Confidence.DERIVED, method="derived")
+        if setup.builder == "amber":  # AmberOptions / older SystemBuilder + RunOptions
+            gb, stated_gb = setup.implicit_solvent_model
+            implicit = gb is not None
+            how = "implicit_solvent_model / solvation" + ("" if stated_gb else " (MELD default)")
+            s.implicit_solvent = st(implicit, how, conf=Confidence.EXACT if stated_gb else Confidence.DERIVED,
+                                    method="stated" if stated_gb else "derived: MELD default")  # fmt: skip
+            s.periodic = st(
+                setup.explicit_solvent, "solvation", conf=Confidence.DERIVED, method="derived"
+            )
+        else:
+            implicit = str(
+                setup.builder_options.get("solvation_type", "")
+            ).lower() == "implicit" or any(
+                "implicit" in str(x)
+                for x in setup.builder_options.get("base_forcefield_files") or []
+            )
+            s.implicit_solvent = st(implicit, "solvation_type / base_forcefield_files")
+            s.periodic = st(
+                not implicit, "solvation_type", conf=Confidence.DERIVED, method="derived"
+            )
         s.restraints = st(
             True, "MELD restraints (data-guided)", conf=Confidence.DERIVED, method="derived"
         )
@@ -303,9 +434,7 @@ class MeldAdapter(EngineAdapter):
                 method="derived: final alpha through the temperature scaler", confidence=Confidence.DERIVED, note=note,
             )  # fmt: skip
             step.raw["meld_alpha_final"] = history.last[idx]
-        else:
-            findings.append(finding("MELD001", f"{step.id}: data store not read; temperature from the initial ladder",
-                                    subject=step.id))  # fmt: skip
+        # no data store: temp stays blank (LOAD001 says why), never the initial ladder's guess
 
     def _runtime(self, leader: ParsedFile | None, setup: files.MeldSetup | None) -> StepRuntime:
         rt = StepRuntime()
@@ -364,6 +493,12 @@ class MeldAdapter(EngineAdapter):
             ]
             if implicit:
                 m["implicit_solvent"] = implicit[0]
+            ff, _ = setup.forcefield
+            if ff:
+                m["forcefield"] = ff
+            gb, _ = setup.implicit_solvent_model
+            if gb:
+                m["implicit_solvent"] = f"{gb} (OpenMM {files.MELD_GB_MODELS.get(gb.lower(), gb)})"
         if history is not None:
             m["stored_frames"] = history.n_frames
             m["ladder_settled_frame"] = max(history.settled_frame)
@@ -414,6 +549,15 @@ class MeldAdapter(EngineAdapter):
                 [str(x) for x in opts.get("base_forcefield_files") or []]
             )
             ffs += [f for f in base if f not in ffs]
+            # the Amber builder (current and older syntax): ff is the name the setup script gives
+            # MELD (e.g. "ff14sbside", which MELD loads as leaprc.protein.ff14SBonlysc)
+            ff_name, _ = pf.result.forcefield
+            if ff_name and ff_name not in ffs:
+                ffs.append(ff_name)
+            for leaprc in pf.result.leaprcs:
+                kind = classify_leaprc(leaprc)
+                if kind is not None and kind[0] == "water" and kind[1] not in waters:
+                    waters.append(kind[1])
             return [
                 BuildEvidence(source=pf.rel, force_fields=ffs, water_models=waters, linked=True)
             ]

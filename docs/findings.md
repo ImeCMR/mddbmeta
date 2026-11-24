@@ -58,6 +58,11 @@ Severities: `error` (exit 2 from `validate`/`export`), `warning` (exit 2 with `-
 | `MELD002` | info | Extracted trajectories hold a different number of frames than the data store |
 | `MELD003` | info | Walker trajectories recorded but not exported |
 | `MELD004` | info | The replica-exchange run was restarted |
+| `MELD005` | info | Topology written from the MELD system (Data/system.dat) |
+| `MELD006` | warning | No topology could be written from Data/system.dat |
+| `MELD007` | info | Starting structure written from the MELD system (Data/system.dat) |
+| `MELD008` | warning | No starting structure could be written from Data/system.dat |
+| `MELD009` | warning | Extracted ladder DCDs have different lengths (extraction incomplete) |
 
 ## Steps
 

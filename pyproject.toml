@@ -16,13 +16,17 @@ classifiers = [
     "Programming Language :: Python :: 3",
     "Topic :: Scientific/Engineering :: Chemistry",
 ]
-dependencies = []
+dependencies = [
+    "numpy>=1.22",
+    "openmm>=8.0",
+    "parmed>=4.0",
+]
 
 [project.optional-dependencies]
 yaml = ["PyYAML>=6"]
-netcdf = ["netCDF4>=1.6"]
+netcdf = ["netCDF4>=1.7.1"]
 dev = ["pytest>=7", "pytest-cov", "ruff", "mypy", "jinja2", "PyYAML>=6", "pydantic>=2", "scipy"]
-all = ["PyYAML>=6", "netCDF4>=1.6"]
+all = ["PyYAML>=6", "netCDF4>=1.7.1"]
 
 [project.scripts]
 mddbmeta = "mddbmeta.cli.main:main"

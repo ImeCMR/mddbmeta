@@ -22,6 +22,7 @@ _SAVE = re.compile(
 # leaprc stem -> MDDB-style force-field label (unknown stems fall back to a generic label)
 FORCE_FIELDS = {
     "ff14sb": "Amber ff14SB",
+    "ff14sbonlysc": "Amber ff14SBonlysc",  # ff14SB side chains, ff99SB backbone (for GBneck2)
     "ff19sb": "Amber ff19SB",
     "ff99sb": "Amber ff99SB",
     "ff99sbildn": "Amber ff99SB-ILDN",

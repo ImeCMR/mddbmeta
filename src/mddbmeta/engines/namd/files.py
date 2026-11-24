@@ -249,8 +249,8 @@ def read_pdb(path: str | Path) -> Pdb:
                     )
                 except ValueError:
                     cryst = None
-            elif line.startswith("ENDMDL"):
-                break
+            elif line.startswith("END") and n:
+                break  # ENDMDL, or END: multi-frame PDBs (MELD's trajectory.pdb) repeat the model after it
     close()
     return Pdb(path=str(path), natom=n, cryst1_A=cryst, residue_counts=counts,  # type: ignore[arg-type]
                residue_atoms=atoms, residue_atom_names=names, nres=nres)  # fmt: skip

@@ -270,7 +270,12 @@ def mine(project: Project) -> list[Finding]:
         findings.append(finding(
             "MINE004",
             "no topology file (the system was built from a structure and force-field files); MDDB-workflow "
-            "will skip charge-based analyses and guess bonds -- export a prmtop/psf if you need them",
+            "will skip charge-based analyses and guess bonds -- " + _topology_hint(project),
+            data={"field": "input_topology_filepath"},
+        ))  # fmt: skip
+    elif not project.topologies and project.engine == "meld":
+        findings.append(finding(
+            "MINE004", "no topology file -- " + _topology_hint(project),
             data={"field": "input_topology_filepath"},
         ))  # fmt: skip
 
@@ -404,3 +409,12 @@ def _evidence(project: Project) -> list[BuildEvidence]:
     prod = [project.steps[s] for r in project.replicas for s in r.production_chain]
     out.extend(ev for ev in adapter.run_evidence(prod) if ev.force_fields or ev.water_models)
     return out
+
+
+def _topology_hint(project: Project) -> str:
+    if project.engine == "meld":
+        return (
+            f"write one from the run's Data/system.dat with `mddbmeta meld-prmtop {project.root}`, "
+            "then re-run"
+        )
+    return "export a prmtop/psf if you need them"

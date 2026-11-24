@@ -18,6 +18,7 @@ def check_completeness(project: Project) -> list[Finding]:
         and s.input_coords.ref
         and s.status != "queued"
     }
+    unfinished_by_log: dict[str, list] = {}
     for step in project.steps.values():
         if step.status != "done":
             continue
@@ -41,15 +42,24 @@ def check_completeness(project: Project) -> list[Finding]:
             )
         if rt.completed.value is False:
             mid = step.id in continued
-            findings.append(
-                finding(
-                    "CMP002",
-                    f"{step.id} did not finish"
-                    + (" but a later run continues from it" if mid else " (last run of its chain)"),
-                    subject=step.id,
-                    severity=Severity.ERROR if mid else None,
+            log = step.files.get(FileRole.LOG)
+            if not mid and log is not None:
+                # several runs logged in one file (e.g. every replica of one REMD job): one finding per log
+                unfinished_by_log.setdefault(log.path, []).append(step)
+            else:
+                findings.append(
+                    finding(
+                        "CMP002",
+                        f"{step.id} did not finish"
+                        + (
+                            " but a later run continues from it"
+                            if mid
+                            else " (last run of its chain)"
+                        ),
+                        subject=step.id,
+                        severity=Severity.ERROR if mid else None,
+                    )
                 )
-            )
         traj = step.trajectory
         if (
             md
@@ -83,4 +93,13 @@ def check_completeness(project: Project) -> list[Finding]:
                         subject=step.id,
                     )
                 )
+    for log, steps in unfinished_by_log.items():
+        note = steps[0].runtime.completed.note
+        if len(steps) == 1:
+            msg = f"{steps[0].id} did not finish (last run of its chain)"
+        else:
+            msg = f"{len(steps)} runs logged in {log} did not finish (last runs of their chains)"
+        findings.append(finding("CMP002", msg + (f": {note}" if note else ""),
+                                subject=steps[0].id if len(steps) == 1 else None,
+                                paths=[log], data={"steps": [st.id for st in steps]}))  # fmt: skip
     return findings
